@@ -84,6 +84,7 @@ export function useGameState() {
     deck: Card[];
     hand: Card[];
     discard: Card[];
+    currentEnemies: Enemy[];
     damage: number;
     shield: number;
     heal: number;
@@ -142,6 +143,10 @@ export function useGameState() {
     nextDrawPlus1?: number;
     circuitBreak?: number;
     immuneDebuffToAdd?: number;
+    attackAgainNext?: number;
+    endCombatDamage?: number;
+    delayedCards?: Card[];
+    pendingInspiration?: import('@/types/game').InspirationState | null;
   }
   
   const executeCardEffect = (state: GameState, card: Card, targetIndex: number = 0): CardEffectResult => {
@@ -211,10 +216,15 @@ export function useGameState() {
     let nextDrawPlus1 = 0;
     let circuitBreak = 0;
     let immuneDebuffToAdd = 0;
+    let attackAgainNext = 0;
+    let endCombatDamage = 0;
+    let delayedCards: Card[] = [];
     let costMinusThisTurn = 0;
     // 新增：标记是否是本次卡牌新设置的效果值
     let newAllAttacksBonus: number | undefined = undefined;
     let newZeroAttackBonus: number | undefined = undefined;
+    // 新增：待处理的灵感选择
+    let pendingInspiration: import('@/types/game').InspirationState | null = null;
     
     // 从state获取现有效果状态
     if (state.permanentDrawBonus) permanentDrawBonus = state.permanentDrawBonus;
@@ -225,6 +235,9 @@ export function useGameState() {
     if (state.nextDraw1Next) nextDraw1Next = state.nextDraw1Next;
     if (state.allShield5Next) allShield5Next = state.allShield5Next;
     if (state.nextTurnSkip) nextTurnSkipFlag = state.nextTurnSkip;
+    
+    // 创建敌人状态副本，用于跟踪对敌人的修改
+    let modifiedEnemies = state.currentEnemies.map(e => ({ ...e }));
     
     // ===== 基础效果处理 =====
     switch (effect.type) {
@@ -317,10 +330,11 @@ export function useGameState() {
                 // Printf: 对所有敌人造成2点伤害
                 {
                   // 对全体敌人造成2点伤害（在抽牌后）
-                  state.currentEnemies.forEach(enemy => {
+                  modifiedEnemies = modifiedEnemies.map(enemy => {
                     if (enemy.currentHealth > 0) {
-                      enemy.currentHealth = Math.max(0, enemy.currentHealth - 2);
+                      return { ...enemy, currentHealth: Math.max(0, enemy.currentHealth - 2) };
                     }
+                    return enemy;
                   });
                   console.log(`[DrawExtra] Printf: 对全体敌人造成2点伤害`);
                 }
@@ -527,7 +541,7 @@ export function useGameState() {
         // next_attack_plus_4 的实现已移至下方，此处删除重复 case
         case 'bonus_vs_shield_6':
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target && (target as any).shield > 0) {
               damage += 6;
               console.log(`[Extra] 对护盾敌人额外+6伤害`);
@@ -556,7 +570,7 @@ export function useGameState() {
         case 'mark_vulnerable_3':
           // 断点: 标记敌人获得3层易伤（受到伤害+50%每层）
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).vulnerable = ((target as any).vulnerable || 0) + 3;
               console.log(`[Extra] 断点: ${target.name}获得3层易伤`);
@@ -566,9 +580,9 @@ export function useGameState() {
         case 'overflow_damage':
           // 缓冲区溢出: 伤害溢出到其他存活敌人
           {
-            const aliveEnemies = state.currentEnemies.filter(e => e.currentHealth > 0 && e !== state.currentEnemies[targetIndex]);
+            const aliveEnemies = modifiedEnemies.filter(e => e.currentHealth > 0 && e !== modifiedEnemies[targetIndex]);
             if (aliveEnemies.length > 0) {
-              const overflowDamage = Math.max(0, damage - (state.currentEnemies[targetIndex]?.currentHealth || 0));
+              const overflowDamage = Math.max(0, damage - (modifiedEnemies[targetIndex]?.currentHealth || 0));
               if (overflowDamage > 0) {
                 aliveEnemies.forEach(enemy => {
                   (enemy as any).pendingOverflowDamage = ((enemy as any).pendingOverflowDamage || 0) + Math.floor(overflowDamage / aliveEnemies.length);
@@ -609,7 +623,7 @@ export function useGameState() {
           break;
         case 'full_hp_bonus_15':
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target && target.currentHealth >= target.maxHealth) {
               damage += 15;
               console.log(`[Extra] 零日漏洞: 满血敌人，伤害+15`);
@@ -639,7 +653,7 @@ export function useGameState() {
         case 'stun_1':
           // 晕眩敌人1回合
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).stunned = ((target as any).stunned || 0) + 1;
               console.log(`[Extra] 死锁: ${target.name}晕眩1回合`);
@@ -649,7 +663,7 @@ export function useGameState() {
         case 'stun_all_1':
           // 晕眩所有敌人1回合
           {
-            state.currentEnemies.forEach(enemy => {
+            modifiedEnemies.forEach(enemy => {
               (enemy as any).stunned = ((enemy as any).stunned || 0) + 1;
             });
             console.log(`[Extra] 蓝屏: 所有敌人晕眩1回合`);
@@ -658,7 +672,7 @@ export function useGameState() {
         case 'random_stun':
           // 随机晕眩1个敌人
           {
-            const aliveEnemies = state.currentEnemies.filter(e => e.currentHealth > 0);
+            const aliveEnemies = modifiedEnemies.filter(e => e.currentHealth > 0);
             if (aliveEnemies.length > 0) {
               const randomEnemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
               (randomEnemy as any).stunned = ((randomEnemy as any).stunned || 0) + 1;
@@ -666,19 +680,11 @@ export function useGameState() {
             }
           }
           break;
-        case 'draw_2':
-          // 抽2张牌
-          {
-            const dr = drawCards(2, newDeck, newHand, newDiscard);
-            newDeck = dr.deck; newHand = dr.hand; newDiscard = dr.discard;
-            console.log(`[Extra] 抽2张牌`);
-          }
-          break;
-        // shield_10, heal_20, cleanse, damage_all_2, filter_attacks, filter_skills, heal_5 的实现已在上方，此处删除重复 case
+        // shield_10, heal_20, cleanse, damage_all_2, filter_attacks, filter_skills, heal_5, draw_2 的实现已在上方，此处删除重复 case
         case 'reveal_intent':
           // 显示敌人意图：揭示目标敌人的意图
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).intentRevealed = true;
               console.log(`[Extra] Debug/Git Blame: 揭示${target.name}的意图`);
@@ -701,7 +707,7 @@ export function useGameState() {
         case 'all_weak_2':
           // 所有敌人获得2层虚弱
           {
-            state.currentEnemies.forEach(enemy => {
+            modifiedEnemies.forEach(enemy => {
               (enemy as any).weak = ((enemy as any).weak || 0) + 2;
             });
             console.log(`[Extra] API网关: 所有敌人获得2层虚弱`);
@@ -732,7 +738,7 @@ export function useGameState() {
         case 'limit_attack_1':
           // 限制敌人只能攻击1次
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).attackLimited = 1;
               console.log(`[Extra] 限流器: ${target.name}本回合只能攻击1次`);
@@ -746,7 +752,7 @@ export function useGameState() {
         case 'steal_shield':
           // 窃取护盾
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target && (target as any).shield > 0) {
               const stolenShield = (target as any).shield || 0;
               shield += stolenShield;
@@ -770,7 +776,7 @@ export function useGameState() {
         case 'apply_weak_2':
           // 施加虚弱（-25%伤害）
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).weak = ((target as any).weak || 0) + 2;
               console.log(`[Extra] 防火墙: ${target.name}获得2层虚弱`);
@@ -800,12 +806,32 @@ export function useGameState() {
           console.log(`[Extra] 后门: 只能本回合第一张打出`);
           break;
         case 'draw_attack_cost_minus':
-          // 抽到攻击牌本回合费用-1
-          console.log(`[Extra] Code Review: 抽到攻击牌本回合费用-1`);
+          // Code Review: 抽到攻击牌本回合费用-1（简化：立即抽1张，如果是攻击牌获得1能量）
+          {
+            const dr = drawCards(1, newDeck, newHand, newDiscard);
+            newDeck = dr.deck; newHand = dr.hand; newDiscard = dr.discard;
+            const drawnCard = dr.hand[dr.hand.length - 1];
+            if (drawnCard && drawnCard.type === 'attack') {
+              energyGain += 1;
+              console.log(`[Extra] Code Review: 抽到攻击牌${drawnCard.name}，获得1能量`);
+            } else {
+              console.log(`[Extra] Code Review: 抽牌但未抽到攻击牌`);
+            }
+          }
           break;
         case 'drawn_attack_cost_minus':
-          // 抽到攻击牌本回合费用-1
-          console.log(`[Extra] Git Pull: 抽到攻击牌本回合费用-1`);
+          // Git Pull: 抽到攻击牌本回合费用-1（简化：立即抽1张，如果是攻击牌获得1能量）
+          {
+            const dr = drawCards(1, newDeck, newHand, newDiscard);
+            newDeck = dr.deck; newHand = dr.hand; newDiscard = dr.discard;
+            const drawnCard = dr.hand[dr.hand.length - 1];
+            if (drawnCard && drawnCard.type === 'attack') {
+              energyGain += 1;
+              console.log(`[Extra] Git Pull: 抽到攻击牌${drawnCard.name}，获得1能量`);
+            } else {
+              console.log(`[Extra] Git Pull: 抽牌但未抽到攻击牌`);
+            }
+          }
           break;
         case 'chance_shield_15':
           // 50%几率获得15护盾
@@ -864,27 +890,7 @@ export function useGameState() {
           immuneDebuff = 1;
           console.log(`[Extra] 量子加密: 免疫所有效果1回合`);
           break;
-        case 'discard_all':
-          // 弃光手牌
-          {
-            const count = newHand.length;
-            newDiscard = [...newDiscard, ...newHand];
-            newHand = [];
-            console.log(`[Extra] 大爆炸重构: 弃掉${count}张手牌`);
-          }
-          break;
-        case 'discard_all_draw_equal':
-          // 弃光手牌并抽等量
-          {
-            const count = newHand.length;
-            newDiscard = [...newDiscard, ...newHand];
-            newHand = [];
-            const dr = drawCards(count, newDeck, newHand, newDiscard);
-            newDeck = dr.deck; newHand = dr.hand; newDiscard = dr.discard;
-            console.log(`[Extra] F5刷新: 弃${count}张，抽${count}张`);
-          }
-          break;
-        // discard_all_damage_per_3, stash_and_draw, duplicate_hand, drawn_free_and_double, 
+        // discard_all, discard_all_draw_equal, discard_all_damage_per_3, stash_and_draw, duplicate_hand, drawn_free_and_double, 
         // damage_per_hand_3, choose_keep, permanent_draw_1 的实现已在上方，此处删除重复 case
         case 'scry_10_fetch':
           // 小黄鸭调试: 预言10张，抓取最强3张加入手牌
@@ -945,17 +951,7 @@ export function useGameState() {
           handCostZero = true;
           console.log(`[Extra] Monorepo: 手牌费用变为0`);
           break;
-        case 'cleanse_draw_2':
-          {
-            const dr = drawCards(2, newDeck, newHand, newDiscard);
-            newDeck = dr.deck; newHand = dr.hand; newDiscard = dr.discard;
-            console.log(`[Extra] Scrum Master: 清除负面效果，抽2张`);
-          }
-          break;
-        case 'gain_15_money':
-          money += 15;
-          console.log(`[Extra] 社工: 获得15金钱`);
-          break;
+        // cleanse_draw_2, gain_15_money 的实现已在上方，此处删除重复 case
         case 'gain_curse':
           // 技术债务: 获得1张诅咒卡
           {
@@ -977,39 +973,14 @@ export function useGameState() {
           damage = Math.floor(Math.random() * 21) + 10;
           console.log(`[Extra] 混沌工程: 随机${damage}点伤害`);
           break;
-        case 'self_damage_10':
-          heal = -10;
-          console.log(`[Extra] 生产部署: 自身受到10伤害`);
-          break;
-        case 'skip_next_turn':
-          // 跳过下回合
-          nextTurnSkipFlag = true;
-          console.log(`[Extra] 通宵加班: 跳过下回合`);
-          break;
+        // skip_next_turn 的实现已在上方，此处删除重复 case
         case 'chance_instant_kill':
           if (Math.random() < 0.5) {
             damage = 999;
             console.log(`[Extra] 演示之神: 触发秒杀！`);
           }
           break;
-        case 'bonus_per_curse_5':
-          // 祖传代码: 诅咒牌加成（简化处理，+5伤害）
-          damage += 5;
-          console.log(`[Extra] 祖传代码: 诅咒牌加成+5伤害`);
-          break;
-        case 'bonus_per_copy_3':
-          // 复制粘贴: 重复牌加成（简化处理，+3伤害）
-          damage += 3;
-          console.log(`[Extra] 复制粘贴: 重复牌加成+3伤害`);
-          break;
-        case 'repeat_per_hand_card':
-          damage *= newHand.length;
-          console.log(`[Extra] 客户演示: 手牌${newHand.length}张，伤害×${newHand.length}`);
-          break;
-        case 'repeat_per_discard':
-          damage *= newDiscard.length;
-          console.log(`[Extra] 无限回归: 弃牌${newDiscard.length}张，伤害×${newDiscard.length}`);
-          break;
+        // bonus_per_curse_5, bonus_per_copy_3, repeat_per_hand_card, repeat_per_discard 的实现已在上方，此处删除重复 case
         // damage_per_hand_3, choose_keep, draw_5_hand_plus_5, duplicate_hand, 
         // play_lose_3_hp, play_lose_5_hp, draw_2, draw_3 的实现已在上方，此处删除重复 case
         case 'heal_10':
@@ -1025,7 +996,9 @@ export function useGameState() {
           console.log(`[Extra] 获得3能量`);
           break;
         case 'start_lose_max_hp':
-          console.log(`[Extra] 内存泄漏诅咒: 每回合失去1最大生命`);
+          // 内存泄漏诅咒: 每回合失去1最大生命（简化：立即失去3生命作为代价）
+          heal = -3;
+          console.log(`[Extra] 内存泄漏诅咒: 受到3点伤害`);
           break;
         case 'unplayable':
           console.log(`[Extra] 死循环诅咒: 无法打出`);
@@ -1040,8 +1013,8 @@ export function useGameState() {
           break;
         case 'end_combat_lose_5':
           // 构建失败诅咒: 战斗结束失去5生命
-          // endCombatDamage 需要在 GameState 中定义，暂时跳过
-          console.log(`[Extra] 构建失败诅咒: 战斗结束失去5生命`);
+          endCombatDamage = (endCombatDamage || 0) + 5;
+          console.log(`[Extra] 构建失败诅咒: 战斗结束将受到5点伤害`);
           break;
         case 'draw_discard_1':
           console.log(`[Extra] 合并冲突诅咒: 抽到时弃1张`);
@@ -1058,7 +1031,15 @@ export function useGameState() {
           }
           break;
         case 'record_and_repeat':
-          console.log(`[Extra] Vim宏: 记录本回合打出的牌`);
+          // Vim宏: 记录本回合打出的牌，复制最后打出的那张到手牌
+          if (state.cardsPlayedThisTurn > 0) {
+            // 简化实现：从弃牌堆复制最近打出的一张牌
+            const lastPlayed = newDiscard[newDiscard.length - 1];
+            if (lastPlayed) {
+              newHand = [...newHand, { ...lastPlayed, id: lastPlayed.id + '_repeat_' + Date.now() }];
+              console.log(`[Extra] Vim宏: 复制${lastPlayed.name}到手牌`);
+            }
+          }
           break;
         case 'energy_per_card_played':
           console.log(`[Extra] StackOverflow: 获得能量`);
@@ -1077,7 +1058,7 @@ export function useGameState() {
           break;
         case 'disable_special_1':
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).specialDisabled = 1;
               console.log(`[Extra] Rootkit: ${target.name}失去特殊能力1回合`);
@@ -1086,7 +1067,7 @@ export function useGameState() {
           break;
         case 'disable_shield_next':
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).noShieldNext = true;
               console.log(`[Extra] 编译错误: ${target.name}下回合无法获得护盾`);
@@ -1094,7 +1075,7 @@ export function useGameState() {
           }
           break;
         case 'skip_all_turn':
-          state.currentEnemies.forEach(enemy => {
+          modifiedEnemies.forEach(enemy => {
             (enemy as any).skipped = true;
           });
           console.log(`[Extra] 内核崩溃: 所有敌人跳过下回合`);
@@ -1110,10 +1091,59 @@ export function useGameState() {
           console.log(`[Extra] 熔断器: 下次大额伤害时免疫`);
           break;
         case 'delay_1_card':
-          console.log(`[Extra] 消息队列: 延迟1张牌到下回合`);
+          // 消息队列: 延迟1张牌到下回合（将当前手牌最左侧的牌延迟）
+          if (newHand.length > 0) {
+            const cardToDelay = newHand.shift()!;
+            delayedCards.push(cardToDelay);
+            console.log(`[Extra] 消息队列: 将${cardToDelay.name}延迟到下回合`);
+          } else if (newDeck.length > 0) {
+            // 手牌为空则从牌库顶取一张
+            const cardToDelay = newDeck.shift()!;
+            delayedCards.push(cardToDelay);
+            console.log(`[Extra] 消息队列: 将${cardToDelay.name}延迟到下回合`);
+          }
           break;
         case 'choose_shield_or_draw':
-          console.log(`[Extra] 功能开关: 选择获得护盾或抽牌`);
+          // 功能开关: 选择获得护盾或抽牌 → 触发灵感选择
+          {
+            // 创建两个虚拟选项卡牌
+            const optionCards: Card[] = [
+              {
+                id: 'inspiration_shield_8',
+                name: '获得护盾',
+                cost: 0,
+                type: 'defense',
+                rarity: 'common',
+                description: '获得8点护盾',
+                effect: { type: 'shield', value: 8, target: 'self' },
+                icon: 'Shield'
+              },
+              {
+                id: 'inspiration_draw_2',
+                name: '抽取卡牌',
+                cost: 0,
+                type: 'skill',
+                rarity: 'common',
+                description: '抽2张牌',
+                effect: { type: 'draw', value: 2, target: 'self' },
+                icon: 'Files'
+              }
+            ];
+            // 保存需要灵感的卡牌
+            pendingInspiration = {
+              isActive: false,
+              type: 'choose_one',
+              title: '功能开关',
+              description: '选择获得8点护盾，或抽2张牌',
+              cards: optionCards,
+              selectCount: 1,
+              canDiscard: false,
+              canReorder: false,
+              sourceCardName: card.name,
+              callbackAction: 'choose_shield_or_draw'
+            };
+            console.log(`[Inspiration] 准备触发: 功能开关`);
+          }
           break;
         // overflow_damage, confuse_1, full_hp_bonus_15, draw_2_if_kill, mark_vulnerable_3,
         // hand_size_plus_1, hand_size_plus_2 的实现已在上方，此处删除重复 case
@@ -1130,7 +1160,7 @@ export function useGameState() {
           // 如果是本回合第一张牌，伤害翻倍并晕眩
           if (state.cardsPlayedThisTurn === 0) {
             damage *= 2;
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).stunned = ((target as any).stunned || 0) + 1;
               console.log(`[Extra] first_card_double_stun: 首牌伤害翻倍并晕眩${target.name}`);
@@ -1173,7 +1203,7 @@ export function useGameState() {
         case 'combo_skill_stun':
           // 如果本回合已打出技能牌，晕眩敌人
           if (state.skillUsedThisTurn || (state.cardsPlayedThisTurnTypes && state.cardsPlayedThisTurnTypes.includes('skill'))) {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).stunned = ((target as any).stunned || 0) + 1;
               console.log(`[Extra] combo_skill_stun: 本回合已使用技能，晕眩${target.name}`);
@@ -1182,16 +1212,7 @@ export function useGameState() {
             console.log(`[Extra] combo_skill_stun: 本回合未使用技能，效果不触发`);
           }
           break;
-        case 'discard_1':
-          // 弃1张手牌
-          if (newHand.length > 0) {
-            const discarded = newHand.pop()!;
-            newDiscard = [...newDiscard, discarded];
-            discardCountThisTurn = (discardCountThisTurn || 0) + 1;
-            cardsDiscardedThisCombat = (cardsDiscardedThisCombat || 0) + 1;
-            console.log(`[Extra] discard_1: 弃掉${discarded.name}`);
-          }
-          break;
+        // discard_1 的实现已在上方，此处删除重复 case
         case 'random_3_10':
           // 随机造成3-10点伤害
           damage = Math.floor(Math.random() * 8) + 3;
@@ -1275,7 +1296,7 @@ export function useGameState() {
         case 'chain_attack_stun':
           // 如果上回合打出攻击牌，晕眩敌人
           if (state.lastTurnCardTypes && state.lastTurnCardTypes.includes('attack')) {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).stunned = ((target as any).stunned || 0) + 1;
               console.log(`[Extra] chain_attack_stun: 上回合打出攻击牌，晕眩${target.name}`);
@@ -1287,7 +1308,7 @@ export function useGameState() {
         case 'bonus_vs_weak_4':
           // 如果敌人有虚弱，伤害+4
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target && (target as any).weak > 0) {
               damage += 4;
               console.log(`[Extra] bonus_vs_weak_4: 敌人虚弱，伤害+4`);
@@ -1317,7 +1338,7 @@ export function useGameState() {
         case 'steal_ability':
           // 随机触发1个敌人的特殊能力为己用（简化：获得随机增益）
           {
-            const aliveEnemies = state.currentEnemies.filter(e => e.currentHealth > 0);
+            const aliveEnemies = modifiedEnemies.filter(e => e.currentHealth > 0);
             if (aliveEnemies.length > 0) {
               const randomEnemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
               shield += 8;
@@ -1328,7 +1349,7 @@ export function useGameState() {
         case 'percent_15_ignore_shield':
           // 造成目标当前生命15%的伤害（无视护盾）
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               damage = Math.floor(target.currentHealth * 0.15);
               console.log(`[Extra] percent_15_ignore_shield: 目标当前生命${target.currentHealth}的15% = ${damage}伤害，无视护盾`);
@@ -1341,7 +1362,7 @@ export function useGameState() {
             const randomDamage = Math.floor(Math.random() * 19) + 2;
             damage = randomDamage;
             if (randomDamage === 20) {
-              state.currentEnemies.forEach(enemy => {
+              modifiedEnemies.forEach(enemy => {
                 (enemy as any).stunned = ((enemy as any).stunned || 0) + 1;
               });
               console.log(`[Extra] random_2_20_crit: 随机伤害20！晕眩全场！`);
@@ -1381,7 +1402,7 @@ export function useGameState() {
         case 'apply_weak_1':
           // 敌人获得1层虚弱
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).weak = ((target as any).weak || 0) + 1;
               console.log(`[Extra] apply_weak_1: ${target.name}获得1层虚弱`);
@@ -1508,7 +1529,7 @@ export function useGameState() {
         case 'limit_enemy_attacks_1':
           // 敌人本回合只能攻击1次
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).attackLimited = 1;
               console.log(`[Extra] limit_enemy_attacks_1: ${target.name}本回合只能攻击1次`);
@@ -1555,7 +1576,7 @@ export function useGameState() {
         case 'disable_special_2':
           // 敌人的特殊能力失效2回合
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).specialDisabled = 2;
               console.log(`[Extra] disable_special_2: ${target.name}特殊能力失效2回合`);
@@ -1606,17 +1627,25 @@ export function useGameState() {
 
         // ===== 技能牌效果（30个）=====
         case 'scry_3_pick_1':
-          // 查看牌库顶3张，选择1张加入手牌
+          // 查看牌库顶3张，选择1张加入手牌 → 触发灵感系统
           {
             const scryAmount = Math.min(3, newDeck.length);
             if (scryAmount > 0) {
               const scryedCards = newDeck.slice(0, scryAmount);
-              const remainingDeck = newDeck.slice(scryAmount);
-              // 简化：自动选择第一张最强的（攻击牌优先）
-              const selectedCard = scryedCards.sort((a, b) => (b.type === 'attack' ? 1 : 0) - (a.type === 'attack' ? 1 : 0))[0];
-              newHand = [...newHand, selectedCard];
-              newDeck = [...remainingDeck, ...scryedCards.filter(c => c !== selectedCard)];
-              console.log(`[Extra] scry_3_pick_1: 查看${scryAmount}张，选择${selectedCard.name}加入手牌`);
+              // 保存需要灵感的卡牌，稍后触发
+              pendingInspiration = {
+                isActive: false, // 还未激活
+                type: 'scry_pick',
+                title: '探寻可能性',
+                description: `查看牌库顶的${scryAmount}张牌，选择1张加入手牌`,
+                cards: scryedCards,
+                selectCount: 1,
+                canDiscard: false,
+                canReorder: false,
+                sourceCardName: card.name,
+                callbackAction: 'scry_3_pick_1'
+              };
+              console.log(`[Inspiration] 准备触发: 探寻可能性`);
             }
           }
           break;
@@ -1650,7 +1679,7 @@ export function useGameState() {
           break;
         case 'reveal_all_intents':
           // 揭示所有敌人的下回合意图
-          state.currentEnemies.forEach(enemy => {
+          modifiedEnemies.forEach(enemy => {
             (enemy as any).intentRevealed = true;
           });
           console.log(`[Extra] reveal_all_intents: 揭示所有敌人意图`);
@@ -1679,17 +1708,24 @@ export function useGameState() {
           }
           break;
         case 'draw_2_choose_discount':
-          // 抽2张，选择弃1张，另1张费用-1
+          // 抽2张，选择弃1张，另1张费用-1 → 触发灵感系统
           {
             const dr = drawCards(2, newDeck, newHand, newDiscard);
             newDeck = dr.deck; newHand = dr.hand; newDiscard = dr.discard;
-            // 简化：弃掉第二张，第一张费用-1
-            if (newHand.length >= 2) {
-              const discarded = newHand.pop()!;
-              newDiscard = [...newDiscard, discarded];
-              nextCardCostMinus = (nextCardCostMinus || 0) + 1;
-              console.log(`[Extra] draw_2_choose_discount: 抽2张，弃1张，下张费用-1`);
-            }
+            const drawnCards = dr.hand.slice(-2); // 获取刚抽的2张牌
+            // 保存需要灵感的卡牌到state
+            (state as any).pendingInspiration = {
+              type: 'choose_one',
+              title: 'A/B测试',
+              description: '选择1张牌保留，另一张将被弃掉并获得费用减免',
+              cards: drawnCards,
+              selectCount: 1,
+              canDiscard: false,
+              canReorder: false,
+              callback: 'draw_2_choose_discount',
+              sourceCardName: card.name
+            };
+            console.log(`[Inspiration] 准备触发: A/B测试`);
           }
           break;
         case 'cleanse_curse_reward':
@@ -1725,7 +1761,7 @@ export function useGameState() {
         case 'reveal_intent_draw':
           // 揭示敌人意图，抽1张牌
           {
-            const target = state.currentEnemies[targetIndex];
+            const target = modifiedEnemies[targetIndex];
             if (target) {
               (target as any).intentRevealed = true;
             }
@@ -1734,14 +1770,7 @@ export function useGameState() {
             console.log(`[Extra] reveal_intent_draw: 揭示意图并抽1张`);
           }
           break;
-        case 'copy_1_hand':
-          // 复制手牌中1张牌
-          if (newHand.length > 0) {
-            const toCopy = newHand[Math.floor(Math.random() * newHand.length)];
-            newHand = [...newHand, { ...toCopy, id: toCopy.id + '_copy_' + Date.now() }];
-            console.log(`[Extra] copy_1_hand: 复制${toCopy.name}`);
-          }
-          break;
+        // copy_1_hand 的实现已在上方，此处删除重复 case
         case 'sacrifice_draw_damage':
           // 弃掉所有手牌，抽等量的牌+3张，弃掉的攻击牌每1张造成5伤害
           {
@@ -1835,17 +1864,27 @@ export function useGameState() {
           }
           break;
         case 'scry_5_arrange':
-          // 查看牌库顶5张，选择任意张置于牌库顶或弃掉
+          // 查看牌库顶5张，选择任意张置于牌库顶或弃掉 → 触发灵感系统
           {
             const scryAmount = Math.min(5, newDeck.length);
             if (scryAmount > 0) {
               const scryedCards = newDeck.slice(0, scryAmount);
-              // 简化：保留攻击牌和技能牌，弃掉诅咒牌
-              const keepCards = scryedCards.filter(c => c.type !== 'curse');
-              const discardCards = scryedCards.filter(c => c.type === 'curse');
-              newDeck = [...keepCards, ...newDeck.slice(scryAmount)];
-              newDiscard = [...newDiscard, ...discardCards];
-              console.log(`[Extra] scry_5_arrange: 查看${scryAmount}张，保留${keepCards.length}张，弃掉${discardCards.length}张`);
+              // 先移除这些牌从牌库
+              newDeck = newDeck.slice(scryAmount);
+              // 保存需要灵感的卡牌
+              pendingInspiration = {
+                isActive: false,
+                type: 'scry_arrange',
+                title: 'Terraform',
+                description: `查看牌库顶的${scryAmount}张牌，选择保留的置于牌库顶，弃掉不需要的`,
+                cards: scryedCards,
+                selectCount: scryAmount,
+                canDiscard: true,
+                canReorder: true,
+                sourceCardName: card.name,
+                callbackAction: 'scry_5_arrange'
+              };
+              console.log(`[Inspiration] 准备触发: Terraform`);
             }
           }
           break;
@@ -1888,27 +1927,76 @@ export function useGameState() {
           }
           break;
         case 'scry_10_fetch_3':
-          // 查看牌库顶10张牌，选择3张加入手牌
+          // 查看牌库顶10张牌，选择3张加入手牌 → 触发灵感系统
           {
             const scryAmount = Math.min(10, newDeck.length);
             if (scryAmount > 0) {
               const scryedCards = newDeck.slice(0, scryAmount);
-              const remainingDeck = newDeck.slice(scryAmount);
-              // 简化：选择最强的3张（攻击牌优先）
-              const scored = scryedCards.map(c => ({
-                card: c,
-                score: (c.type === 'attack' ? c.effect?.value || 0 : 0) + (c.type === 'defense' ? (c.effect?.value || 0) / 2 : 0)
-              })).sort((a, b) => b.score - a.score);
-              const selected = scored.slice(0, 3).map(s => s.card);
-              newHand = [...newHand, ...selected];
-              newDeck = [...remainingDeck, ...scryedCards.filter(c => !selected.includes(c))];
-              console.log(`[Extra] scry_10_fetch_3: 查看${scryAmount}张，选择3张加入手牌`);
+              // 先移除这些牌从牌库
+              newDeck = newDeck.slice(scryAmount);
+              // 保存需要灵感的卡牌
+              pendingInspiration = {
+                isActive: false,
+                type: 'scry_pick',
+                title: '小黄鸭调试法',
+                description: `查看牌库顶的${scryAmount}张牌，选择3张加入手牌`,
+                cards: scryedCards,
+                selectCount: 3,
+                canDiscard: false,
+                canReorder: false,
+                sourceCardName: card.name,
+                callbackAction: 'scry_10_fetch_3'
+              };
+              console.log(`[Inspiration] 准备触发: 小黄鸭调试法`);
             }
           }
           break;
 
-        // ===== 未实现的额外效果 =====
-        // permanent_draw_plus_1, tutor_2_different, artifact_2 的实现已在上方，此处删除重复 case
+        // ===== skill卡牌特殊效果 =====
+        case 'permanent_draw_plus_1':
+          // 技术栈升级: 本战斗每回合抽牌+1
+          permanentDrawBonus = (permanentDrawBonus || 0) + 1;
+          console.log(`[Extra] 技术栈升级: 本战斗每回合抽牌+1`);
+          break;
+        case 'aoe_repeat_per_card':
+          // 永恒之蓝: 对所有敌人造成伤害，本回合每使用1张牌，重复1次
+          {
+            const repeatCount = state.cardsPlayedThisTurn + 1;
+            damage *= repeatCount;
+            card.effect.target = 'all';
+            console.log(`[Extra] 永恒之蓝: 本回合已出牌${state.cardsPlayedThisTurn}张，AOE伤害×${repeatCount}`);
+          }
+          break;
+        case 'ambush_damage_15':
+          // 逻辑炸弹: 埋伏，敌人下次行动时受到15点伤害
+          {
+            const ambushEffect: import('@/types/game').AmbushEffect = {
+              id: `ambush_${Date.now()}`,
+              type: 'damage',
+              value: 15,
+              sourceCardName: card.name,
+              trigger: 'any_action',
+              remainingTurns: 1
+            };
+            ambushEffects = [...ambushEffects, ambushEffect];
+            console.log(`[Extra] 逻辑炸弹: 设置埋伏，敌人下次行动时受到15点伤害`);
+          }
+          break;
+        case 'delayed_self_damage_8':
+          // 熔断漏洞: 造成16点伤害，下回合开始时受到8点伤害
+          nextTurnDamage = (nextTurnDamage || 0) + 8;
+          console.log(`[Extra] 熔断漏洞: 下回合开始时受到8点伤害`);
+          break;
+        case 'all_energy_to_damage':
+          // 技术奇点(攻击牌): 消耗所有能量，每点能量造成8点伤害
+          {
+            const energyToSpend = state.currentCost;
+            damage = energyToSpend * 8;
+            energyGain -= energyToSpend; // 消耗所有能量
+            console.log(`[Extra] 技术奇点: 消耗${energyToSpend}能量，造成${damage}点伤害`);
+          }
+          break;
+        // ===== 其他未实现的额外效果 =====
         case 'skill_bonus_5':
           // 若本回合使用了技能，伤害+5
           if (state.skillUsedThisTurn) {
@@ -1931,8 +2019,9 @@ export function useGameState() {
           console.log(`[Extra] 出风头: 本回合所有攻击伤害+4`);
           break;
         case 'attack_again_next':
-          // 使用现有状态
-          console.log(`[Extra] 贝斯Line: 下回合再次攻击`);
+          // 贝斯Line: 下回合再次攻击
+          attackAgainNext = (attackAgainNext || 0) + 1;
+          console.log(`[Extra] 贝斯Line: 下回合自动攻击${attackAgainNext}次`);
           break;
         case 'cost_minus_1':
           // 独奏王: 本回合费用-1（影响后续出牌）
@@ -1952,8 +2041,13 @@ export function useGameState() {
           console.log(`[Extra] 三角初华: 所有友军获得5护盾`);
           break;
         case 'undamaged_double':
-          // 使用现有状态
-          console.log(`[Extra] 鼓点敲击: 若本回合未受伤伤害翻倍`);
+          // 鼓点敲击: 若本回合未受伤伤害翻倍
+          if (!state.healthLostThisTurn || state.healthLostThisTurn === 0) {
+            damage *= 2;
+            console.log(`[Extra] 鼓点敲击: 本回合未受伤，伤害翻倍为${damage}`);
+          } else {
+            console.log(`[Extra] 鼓点敲击: 本回合已受伤，效果不触发`);
+          }
           break;
         case 'next_2_attack_bonus_5':
           next2AttacksBonus = 5;
@@ -1968,8 +2062,8 @@ export function useGameState() {
     console.log(`[Result] 伤害:${damage} 护盾:${shield} 治疗:${heal} 金钱:${money}`);
     
     return { 
-      deck: newDeck, hand: newHand, discard: newDiscard, 
-      damage, shield, heal, money,
+      deck: newDeck, hand: newHand, discard: newDiscard, currentEnemies: modifiedEnemies,
+      damage, shield, heal, money, pendingInspiration,
       nextTurnCostPenalty: nextTurnCostPenalty || undefined,
       nextAttackBonus: nextAttackBonus || undefined,
       handSizeBonus: handSizeBonus || undefined,
@@ -2022,7 +2116,10 @@ export function useGameState() {
       nextTurnShield5: nextTurnShield5 || undefined,
       nextDrawPlus1: nextDrawPlus1 || undefined,
       circuitBreak: circuitBreak || undefined,
-      immuneDebuffToAdd: immuneDebuffToAdd || undefined
+      immuneDebuffToAdd: immuneDebuffToAdd || undefined,
+      attackAgainNext: attackAgainNext || undefined,
+      endCombatDamage: endCombatDamage || undefined,
+      delayedCards: delayedCards.length > 0 ? delayedCards : undefined
     };
   };
 
@@ -2274,6 +2371,10 @@ export function useGameState() {
       newState.discard = [...prev.discard, card];
       
       newState.currentCost -= actualCost;
+      
+      // 保存增加前的 cardsPlayedThisTurn 用于效果计算
+      // 因为某些效果（如 first_card_double_stun）需要知道这张牌是不是本回合第一张
+      const cardsPlayedBeforeThisCard = newState.cardsPlayedThisTurn;
       newState.cardsPlayedThisTurn += 1;
       
       // 战斗日志会在效果计算完成后记录（见下方）
@@ -2281,6 +2382,7 @@ export function useGameState() {
       // 构建效果计算用的临时 state，包含当前应应用的临时效果
       const effectState = {
         ...newState,
+        cardsPlayedThisTurn: cardsPlayedBeforeThisCard,
         // 如果是0费攻击牌，应用0费攻击加成
         tempZeroAttackBonus: (card.type === 'attack' && actualCost === 0 && newState.zeroAttackBonus && newState.zeroAttackBonus > 0)
           ? newState.zeroAttackBonus
@@ -2288,24 +2390,37 @@ export function useGameState() {
         // 如果是攻击牌，传递下2次攻击加成（executeCardEffect会读取这个值）
         tempNext2AttacksBonus: (card.type === 'attack' && newState.next2AttacksBonus && newState.next2AttacksBonus > 0)
           ? newState.next2AttacksBonus
-          : 0
+          : 0,
+        // 初始时没有待处理的灵感
+        pendingInspiration: null
       };
       
       const result = executeCardEffect(effectState, card, targetIndex);
       newState.deck = result.deck;
       newState.hand = result.hand;
       newState.discard = result.discard;
+      newState.currentEnemies = result.currentEnemies;
       
       // 应用伤害
       if (result.damage > 0 && card.effect.target !== 'self') {
-        console.log(`[Damage] 造成 ${result.damage} 点伤害`);
+        // 计算硬件属性
+        const stats = computeStats(newState.hardware);
+        
+        // 应用 GPU 伤害加成
+        let baseDamage = result.damage;
+        if (stats.gpuBonus > 0) {
+          baseDamage += stats.gpuBonus;
+          console.log(`[GPU] 显卡加成 +${stats.gpuBonus} 伤害`);
+        }
+        
+        console.log(`[Damage] 造成 ${baseDamage} 点伤害`);
         
         // 检查是否无视护盾
         const ignoreShield = card.effect.extraEffect?.includes('ignore_shield');
         const isPureDamage = card.effect.extraEffect?.includes('pure_damage');
         
         // 应用玩家虚弱效果（伤害-25%每层）
-        let playerDamage = result.damage;
+        let playerDamage = baseDamage;
         if (newState.playerWeak && newState.playerWeak > 0 && !isPureDamage) {
           const weakReduction = Math.floor(playerDamage * newState.playerWeak * 0.25);
           playerDamage = Math.max(0, playerDamage - weakReduction);
@@ -2623,8 +2738,26 @@ export function useGameState() {
         newState.immuneDebuff = (newState.immuneDebuff || 0) + result.immuneDebuffToAdd;
         console.log(`[Effect] 免疫负面效果${result.immuneDebuffToAdd}回合`);
       }
+      if (result.attackAgainNext && result.attackAgainNext > 0) {
+        newState.attackAgainNext = (newState.attackAgainNext || 0) + result.attackAgainNext;
+        console.log(`[Effect] 下回合自动攻击${result.attackAgainNext}次`);
+      }
+      if (result.endCombatDamage && result.endCombatDamage > 0) {
+        newState.endCombatDamage = (newState.endCombatDamage || 0) + result.endCombatDamage;
+        console.log(`[Effect] 战斗结束将受到${result.endCombatDamage}点伤害`);
+      }
+      if (result.delayedCards && result.delayedCards.length > 0) {
+        newState.delayedCards = [...(newState.delayedCards || []), ...result.delayedCards];
+        console.log(`[Effect] ${result.delayedCards.length}张牌被延迟到下回合`);
+      }
       if (result.duplicateCardPlayedThisTurn && Object.keys(result.duplicateCardPlayedThisTurn).length > 0) {
         newState.duplicateCardPlayedThisTurn = { ...newState.duplicateCardPlayedThisTurn, ...result.duplicateCardPlayedThisTurn };
+      }
+      if (result.discardCountThisTurn) {
+        newState.discardCountThisTurn = (newState.discardCountThisTurn || 0) + result.discardCountThisTurn;
+      }
+      if (result.cardsDiscardedThisCombat) {
+        newState.cardsDiscardedThisCombat = (newState.cardsDiscardedThisCombat || 0) + result.cardsDiscardedThisCombat;
       }
       
       // 应用能量增益
@@ -2761,6 +2894,23 @@ export function useGameState() {
       }
       newState.cardsPlayedThisTurnTypes.push(card.type as 'attack' | 'defense' | 'skill' | 'curse');
       
+      // 检查是否有待处理的灵感选择
+      if (result.pendingInspiration) {
+        newState.inspiration = {
+          isActive: true,
+          type: result.pendingInspiration.type,
+          title: result.pendingInspiration.title,
+          description: result.pendingInspiration.description,
+          cards: result.pendingInspiration.cards,
+          selectCount: result.pendingInspiration.selectCount,
+          canDiscard: result.pendingInspiration.canDiscard,
+          canReorder: result.pendingInspiration.canReorder,
+          sourceCardName: result.pendingInspiration.sourceCardName,
+          callbackAction: result.pendingInspiration.callbackAction
+        };
+        console.log(`[Inspiration] 触发灵感选择: ${result.pendingInspiration.title}`);
+      }
+      
       return newState;
     });
   }, [drawCards]);
@@ -2804,153 +2954,191 @@ export function useGameState() {
       newState.cardsPlayedThisTurnTypes = [];
       
       // 敌人回合 - 应用敌人攻击
-      newState.currentEnemies.forEach((enemy: Enemy) => {
-        if (enemy.currentHealth > 0) {
+      // 创建敌人副本数组，确保修改被正确追踪
+      // 用于收集需要添加的新敌人（split/summon等能力）
+      const newEnemiesToAdd: Enemy[] = [];
+      
+      newState.currentEnemies = newState.currentEnemies.map((enemy: Enemy) => {
+        // 创建敌人副本
+        const updatedEnemy = { ...enemy };
+        
+        if (updatedEnemy.currentHealth > 0) {
+          // 检查晕眩状态 - 如果晕眩则跳过行动
+          const stunned = (updatedEnemy as any).stunned || 0;
+          if (stunned > 0) {
+            (updatedEnemy as any).stunned = Math.max(0, stunned - 1);
+            console.log(`[Stun] ${updatedEnemy.name}晕眩中，跳过本回合行动，剩余${(updatedEnemy as any).stunned}层`);
+            // 晕眩时也要减少易伤和虚弱层数
+            const vulnerable = (updatedEnemy as any).vulnerable || 0;
+            const weak = (updatedEnemy as any).weak || 0;
+            if (vulnerable > 0) {
+              (updatedEnemy as any).vulnerable = Math.max(0, vulnerable - 1);
+            }
+            if (weak > 0) {
+              (updatedEnemy as any).weak = Math.max(0, weak - 1);
+            }
+            // 清除敌人护盾
+            const currentShield = (updatedEnemy as any).shield || 0;
+            if (currentShield > 0) {
+              console.log(`[EnemyShield] ${updatedEnemy.name}的${currentShield}点护盾回合结束消失`);
+              (updatedEnemy as any).shield = 0;
+            }
+            return updatedEnemy; // 返回更新后的敌人（晕眩状态已减）
+          }
+          
           // 减少易伤和虚弱层数
-          const vulnerable = (enemy as any).vulnerable || 0;
-          const weak = (enemy as any).weak || 0;
+          const vulnerable = (updatedEnemy as any).vulnerable || 0;
+          const weak = (updatedEnemy as any).weak || 0;
           if (vulnerable > 0) {
-            (enemy as any).vulnerable = Math.max(0, vulnerable - 1);
-            console.log(`[Debuff] ${enemy.name}易伤减少1层，剩余${(enemy as any).vulnerable}层`);
+            (updatedEnemy as any).vulnerable = Math.max(0, vulnerable - 1);
+            console.log(`[Debuff] ${updatedEnemy.name}易伤减少1层，剩余${(updatedEnemy as any).vulnerable}层`);
           }
           if (weak > 0) {
-            (enemy as any).weak = Math.max(0, weak - 1);
-            console.log(`[Debuff] ${enemy.name}虚弱减少1层，剩余${(enemy as any).weak}层`);
+            (updatedEnemy as any).weak = Math.max(0, weak - 1);
+            console.log(`[Debuff] ${updatedEnemy.name}虚弱减少1层，剩余${(updatedEnemy as any).weak}层`);
+          }
+          
+          // 清除敌人护盾（每回合结束时护盾消失）
+          const currentShield = (updatedEnemy as any).shield || 0;
+          if (currentShield > 0) {
+            console.log(`[EnemyShield] ${updatedEnemy.name}的${currentShield}点护盾回合结束消失`);
+            (updatedEnemy as any).shield = 0;
           }
           
           // 根据敌人意图执行行动，而不是直接使用attack
           let damage = 0;
-          let enemyShield = (enemy as any).shield || 0;
+          let enemyShield = 0; // 新回合开始时敌人护盾为0
           
           // 如果有意图，按意图执行；否则默认攻击
-          if (enemy.intent) {
-            switch (enemy.intent.type) {
+          if (updatedEnemy.intent) {
+            switch (updatedEnemy.intent.type) {
               case 'attack':
-                damage = enemy.intent.value || enemy.attack || 0;
+                damage = updatedEnemy.intent.value || updatedEnemy.attack || 0;
                 // 虚弱效果：伤害-25%
-                const weak = (enemy as any).weak || 0;
+                const weak = (updatedEnemy as any).weak || 0;
                 if (weak > 0) {
                   const damageReduction = Math.floor(damage * weak * 0.25);
                   damage = Math.max(0, damage - damageReduction);
-                  console.log(`[Weak] ${enemy.name}虚弱${weak}层，伤害-${damageReduction}`);
+                  console.log(`[Weak] ${updatedEnemy.name}虚弱${weak}层，伤害-${damageReduction}`);
                 }
                 break;
               case 'defense':
-                const shieldGain = enemy.intent.value || Math.floor((enemy.attack || 0) * 1.2);
+                const shieldGain = updatedEnemy.intent.value || Math.floor((updatedEnemy.attack || 0) * 1.2);
                 enemyShield += shieldGain;
-                (enemy as any).shield = enemyShield;
-                console.log(`[EnemyIntent] ${enemy.name}防御，获得${shieldGain}护盾`);
+                (updatedEnemy as any).shield = enemyShield;
+                console.log(`[EnemyIntent] ${updatedEnemy.name}防御，获得${shieldGain}护盾`);
                 break;
               case 'special':
                 // 特殊意图不造成伤害，执行特殊效果
-                console.log(`[EnemyIntent] ${enemy.name}准备使用特殊能力！`);
+                console.log(`[EnemyIntent] ${updatedEnemy.name}准备使用特殊能力！`);
                 break;
             }
           } else {
             // 没有意图时默认攻击
-            damage = enemy.attack || 0;
+            damage = updatedEnemy.attack || 0;
             // 虚弱效果：伤害-25%
-            const weak = (enemy as any).weak || 0;
+            const weak = (updatedEnemy as any).weak || 0;
             if (weak > 0) {
               const damageReduction = Math.floor(damage * weak * 0.25);
               damage = Math.max(0, damage - damageReduction);
-              console.log(`[Weak] ${enemy.name}虚弱${weak}层，伤害-${damageReduction}`);
+              console.log(`[Weak] ${updatedEnemy.name}虚弱${weak}层，伤害-${damageReduction}`);
             }
           }
           
           // 处理敌人特殊能力
-          switch (enemy.special) {
+          switch (updatedEnemy.special) {
             case 'growth':
-              enemy.attack = (enemy.attack || 0) + 1;
-              enemy.maxHealth += 3;
-              console.log(`[Enemy] ${enemy.name}成长了！攻击+1，最大生命+3`);
+              updatedEnemy.attack = (updatedEnemy.attack || 0) + 1;
+              updatedEnemy.maxHealth += 3;
+              console.log(`[Enemy] ${updatedEnemy.name}成长了！攻击+1，最大生命+3`);
               break;
             case 'rampage':
-              enemy.attack = (enemy.attack || 0) + 1;
-              console.log(`[Enemy] ${enemy.name}狂暴了！攻击+1`);
+              updatedEnemy.attack = (updatedEnemy.attack || 0) + 1;
+              console.log(`[Enemy] ${updatedEnemy.name}狂暴了！攻击+1`);
               break;
             case 'heal':
               if (newState.turn % 3 === 0) {
-                enemy.currentHealth = Math.min(enemy.maxHealth, enemy.currentHealth + 10);
-                console.log(`[Enemy] ${enemy.name}恢复了10点生命`);
+                updatedEnemy.currentHealth = Math.min(updatedEnemy.maxHealth, updatedEnemy.currentHealth + 10);
+                console.log(`[Enemy] ${updatedEnemy.name}恢复了10点生命`);
               }
               break;
             case 'quick':
               if (newState.turn === 1) {
                 damage *= 2;
-                console.log(`[Enemy] ${enemy.name}快速攻击！伤害翻倍`);
+                console.log(`[Enemy] ${updatedEnemy.name}快速攻击！伤害翻倍`);
               }
               break;
             case 'weak':
               newState.playerWeak = (newState.playerWeak || 0) + 1;
-              console.log(`[Enemy] ${enemy.name}施加虚弱！玩家弱化1层`);
+              console.log(`[Enemy] ${updatedEnemy.name}施加虚弱！玩家弱化1层`);
               break;
             case 'shield':
               if (newState.turn % 2 === 0) {
-                enemyShield = ((enemy as any).shield || 0) + 8;
-                (enemy as any).shield = enemyShield;
-                console.log(`[Enemy] ${enemy.name}获得8点护盾`);
+                enemyShield = ((updatedEnemy as any).shield || 0) + 8;
+                (updatedEnemy as any).shield = enemyShield;
+                console.log(`[Enemy] ${updatedEnemy.name}获得8点护盾`);
               }
               break;
             case 'vulnerable':
               newState.playerVulnerable = (newState.playerVulnerable || 0) + 2;
-              console.log(`[Enemy] ${enemy.name}施加易伤！玩家易伤2层`);
+              console.log(`[Enemy] ${updatedEnemy.name}施加易伤！玩家易伤2层`);
               break;
             case 'regen':
-              enemy.currentHealth = Math.min(enemy.maxHealth, enemy.currentHealth + 3);
-              console.log(`[Enemy] ${enemy.name}再生3点生命`);
+              updatedEnemy.currentHealth = Math.min(updatedEnemy.maxHealth, updatedEnemy.currentHealth + 3);
+              console.log(`[Enemy] ${updatedEnemy.name}再生3点生命`);
               break;
             case 'enrage':
-              if (enemy.currentHealth < enemy.maxHealth * 0.5) {
+              if (updatedEnemy.currentHealth < updatedEnemy.maxHealth * 0.5) {
                 damage *= 2;
-                console.log(`[Enemy] ${enemy.name}愤怒了！伤害翻倍`);
+                console.log(`[Enemy] ${updatedEnemy.name}愤怒了！伤害翻倍`);
               }
               break;
             case 'multiStrike':
               if (newState.turn % 3 === 0) {
                 damage *= 3;
-                console.log(`[Enemy] ${enemy.name}发动多段攻击！`);
+                console.log(`[Enemy] ${updatedEnemy.name}发动多段攻击！`);
               }
               break;
             case 'reflect':
-              console.log(`[Enemy] ${enemy.name}准备反射伤害`);
+              console.log(`[Enemy] ${updatedEnemy.name}准备反射伤害`);
               break;
             case 'poison':
               newState.playerPoison = (newState.playerPoison || 0) + 3;
-              console.log(`[Enemy] ${enemy.name}施加中毒！玩家中毒3层`);
+              console.log(`[Enemy] ${updatedEnemy.name}施加中毒！玩家中毒3层`);
               break;
             case 'drain':
               newState.nextTurnCostPenalty = (newState.nextTurnCostPenalty || 0) + 1;
-              console.log(`[Enemy] ${enemy.name}吸取能量！玩家下回合能量-1`);
+              console.log(`[Enemy] ${updatedEnemy.name}吸取能量！玩家下回合能量-1`);
               break;
 
             case 'cleanse':
               if (newState.turn % 2 === 0) {
-                enemy.currentHealth = Math.min(enemy.maxHealth, enemy.currentHealth + 15);
-                console.log(`[Enemy] ${enemy.name}清除负面效果并恢复15点生命`);
+                updatedEnemy.currentHealth = Math.min(updatedEnemy.maxHealth, updatedEnemy.currentHealth + 15);
+                console.log(`[Enemy] ${updatedEnemy.name}清除负面效果并恢复15点生命`);
               }
               break;
             case 'transform':
-              if (enemy.currentHealth < enemy.maxHealth * 0.5) {
-                enemy.attack += 3;
-                console.log(`[Enemy] ${enemy.name}变身了！攻击+3`);
+              if (updatedEnemy.currentHealth < updatedEnemy.maxHealth * 0.5) {
+                updatedEnemy.attack += 3;
+                console.log(`[Enemy] ${updatedEnemy.name}变身了！攻击+3`);
               }
               break;
             case 'split':
               // 分裂能力在敌人血量低时生成新敌人
-              if (enemy.currentHealth < enemy.maxHealth * 0.5 && !(enemy as any).isSplit) {
-                (enemy as any).isSplit = true;
+              if (updatedEnemy.currentHealth < updatedEnemy.maxHealth * 0.5 && !(updatedEnemy as any).isSplit) {
+                (updatedEnemy as any).isSplit = true;
                 const splitEnemy: Enemy = {
-                  ...enemy,
-                  id: enemy.id + '_split',
-                  name: enemy.name + '(子)',
+                  ...updatedEnemy,
+                  id: updatedEnemy.id + '_split',
+                  name: updatedEnemy.name + '(子)',
                   maxHealth: 30,
                   currentHealth: 30,
                   attack: 4,
-                  intent: generateIntent(enemy)
+                  intent: generateIntent(updatedEnemy)
                 };
-                newState.currentEnemies = [...newState.currentEnemies, splitEnemy];
-                console.log(`[Enemy] ${enemy.name}分裂为2个敌人！`);
+                // 收集新敌人，在map结束后再添加
+                newEnemiesToAdd.push(splitEnemy);
+                console.log(`[Enemy] ${updatedEnemy.name}分裂为2个敌人！`);
               }
               break;
             case 'summon':
@@ -2958,55 +3146,56 @@ export function useGameState() {
                 const summonCount = newState.currentEnemies.filter(e => e.name.includes('子依赖')).length;
                 if (summonCount < 3) {
                   const summonEnemy: Enemy = {
-                    ...enemy,
-                    id: enemy.id + '_minion_' + Date.now(),
+                    ...updatedEnemy,
+                    id: updatedEnemy.id + '_minion_' + Date.now(),
                     name: '子依赖',
                     maxHealth: 15,
                     currentHealth: 15,
                     attack: 4,
                     special: 'none',
                     specialDescription: '无',
-                    intent: generateIntent(enemy)
+                    intent: generateIntent(updatedEnemy)
                   };
-                  newState.currentEnemies = [...newState.currentEnemies, summonEnemy];
-                  console.log(`[Enemy] ${enemy.name}召唤了子依赖！`);
+                  // 收集新敌人，在map结束后再添加
+                  newEnemiesToAdd.push(summonEnemy);
+                  console.log(`[Enemy] ${updatedEnemy.name}召唤了子依赖！`);
                 }
               }
               break;
             case 'decay':
               newState.playerDecay = (newState.playerDecay || 0) + 1;
-              console.log(`[Enemy] ${enemy.name}施加过时效果！玩家手牌费用+1`);
+              console.log(`[Enemy] ${updatedEnemy.name}施加过时效果！玩家手牌费用+1`);
               break;
             // ========== 未实现的敌人特殊能力 ==========
             case 'pointerImmune':
               // 免疫下1次攻击，每3回合重置
               if (newState.turn % 3 === 0) {
-                (enemy as any).immuneNextAttack = true;
-                console.log(`[Enemy] ${enemy.name}获得免疫下1次攻击！`);
+                (updatedEnemy as any).immuneNextAttack = true;
+                console.log(`[Enemy] ${updatedEnemy.name}获得免疫下1次攻击！`);
               }
               break;
             case 'recoil':
               // 攻击时自身失去3点生命
-              enemy.currentHealth = Math.max(0, enemy.currentHealth - 3);
-              console.log(`[Enemy] ${enemy.name}攻击后自身损失3点生命`);
+              updatedEnemy.currentHealth = Math.max(0, updatedEnemy.currentHealth - 3);
+              console.log(`[Enemy] ${updatedEnemy.name}攻击后自身损失3点生命`);
               break;
             // ========== 精英敌人特殊能力 ==========
             case 'eliteGrowth':
-              enemy.attack = (enemy.attack || 0) + 2;
-              enemy.maxHealth += 5;
-              console.log(`[Elite] ${enemy.name}精英成长！攻击+2，最大生命+5`);
+              updatedEnemy.attack = (updatedEnemy.attack || 0) + 2;
+              updatedEnemy.maxHealth += 5;
+              console.log(`[Elite] ${updatedEnemy.name}精英成长！攻击+2，最大生命+5`);
               break;
             case 'eliteStun':
               if (newState.turn % 2 === 0) {
                 newState.playerStunned = (newState.playerStunned || 0) + 1;
                 newState.playerWeak = (newState.playerWeak || 0) + 1;
-                console.log(`[Elite] ${enemy.name}晕眩玩家并施加虚弱！`);
+                console.log(`[Elite] ${updatedEnemy.name}晕眩玩家并施加虚弱！`);
               }
               break;
             case 'eliteReflect':
               enemyShield += 10;
-              (enemy as any).shield = enemyShield;
-              console.log(`[Elite] ${enemy.name}获得10护盾，准备反伤！`);
+              (updatedEnemy as any).shield = enemyShield;
+              console.log(`[Elite] ${updatedEnemy.name}获得10护盾，准备反伤！`);
               break;
             case 'eliteQuick':
               if (newState.turn === 1) {
@@ -3014,28 +3203,28 @@ export function useGameState() {
               } else {
                 damage *= 2;
               }
-              console.log(`[Elite] ${enemy.name}快速攻击！`);
+              console.log(`[Elite] ${updatedEnemy.name}快速攻击！`);
               break;
             case 'eliteCrash':
-              if (enemy.currentHealth < enemy.maxHealth * 0.3) {
+              if (updatedEnemy.currentHealth < updatedEnemy.maxHealth * 0.3) {
                 damage *= 2;
-                console.log(`[Elite] ${enemy.name}崩溃了！伤害翻倍`);
+                console.log(`[Elite] ${updatedEnemy.name}崩溃了！伤害翻倍`);
               }
               break;
             case 'eliteCleanse':
-              enemy.currentHealth = Math.min(enemy.maxHealth, enemy.currentHealth + 20);
-              console.log(`[Elite] ${enemy.name}清除负面并恢复20生命`);
+              updatedEnemy.currentHealth = Math.min(updatedEnemy.maxHealth, updatedEnemy.currentHealth + 20);
+              console.log(`[Elite] ${updatedEnemy.name}清除负面并恢复20生命`);
               break;
             // ========== Boss敌人特殊能力 ==========
             case 'bossCompile':
               if (newState.turn % 3 === 0) {
                 enemyShield += 20;
-                (enemy as any).shield = enemyShield;
-                console.log(`[Boss] ${enemy.name}获得20护盾！`);
+                (updatedEnemy as any).shield = enemyShield;
+                console.log(`[Boss] ${updatedEnemy.name}获得20护盾！`);
               }
-              if (enemy.currentHealth < enemy.maxHealth * 0.5) {
+              if (updatedEnemy.currentHealth < updatedEnemy.maxHealth * 0.5) {
                 damage += 5;
-                console.log(`[Boss] ${enemy.name}进入第二阶段！攻击+5`);
+                console.log(`[Boss] ${updatedEnemy.name}进入第二阶段！攻击+5`);
               }
               break;
             case 'bossSummon':
@@ -3053,34 +3242,35 @@ export function useGameState() {
                     specialDescription: '被召唤的小兵',
                     image: '/enemies/floor1/comment.png'
                   };
-                  newState.currentEnemies = [...newState.currentEnemies, commit];
-                  console.log(`[Boss] ${enemy.name}召唤了Commit！`);
+                  // 收集新敌人，在map结束后再添加
+                  newEnemiesToAdd.push(commit);
+                  console.log(`[Boss] ${updatedEnemy.name}召唤了Commit！`);
                 } else {
-                  console.log(`[Boss] ${enemy.name}尝试召唤但已达上限！`);
+                  console.log(`[Boss] ${updatedEnemy.name}尝试召唤但已达上限！`);
                 }
               }
               break;
             case 'bossPipeline':
-              if (enemy.currentHealth < enemy.maxHealth * 0.5) {
+              if (updatedEnemy.currentHealth < updatedEnemy.maxHealth * 0.5) {
                 damage *= 3;
-                console.log(`[Boss] ${enemy.name}三阶段攻击！`);
+                console.log(`[Boss] ${updatedEnemy.name}三阶段攻击！`);
               } else {
                 damage *= 2;
-                console.log(`[Boss] ${enemy.name}双重攻击！`);
+                console.log(`[Boss] ${updatedEnemy.name}双重攻击！`);
               }
               break;
             case 'bossMonolith':
               if (newState.turn > 3) {
-                enemy.currentHealth = Math.min(enemy.maxHealth, enemy.currentHealth + 15);
-                console.log(`[Boss] ${enemy.name}自愈15点！`);
+                updatedEnemy.currentHealth = Math.min(updatedEnemy.maxHealth, updatedEnemy.currentHealth + 15);
+                console.log(`[Boss] ${updatedEnemy.name}自愈15点！`);
               }
               break;
             case 'bossTransform':
               // 三阶段变身：70%和40%时改变攻击模式
-              if (!(enemy as any).transformPhase) {
-                (enemy as any).transformPhase = 1;
+              if (!(updatedEnemy as any).transformPhase) {
+                (updatedEnemy as any).transformPhase = 1;
               }
-              const healthPercent = enemy.currentHealth / enemy.maxHealth;
+              const healthPercent = updatedEnemy.currentHealth / updatedEnemy.maxHealth;
               let newPhase = 1;
               if (healthPercent <= 0.4) {
                 newPhase = 3;
@@ -3088,40 +3278,41 @@ export function useGameState() {
                 newPhase = 2;
               }
               
-              if (newPhase !== (enemy as any).transformPhase) {
-                (enemy as any).transformPhase = newPhase;
+              if (newPhase !== (updatedEnemy as any).transformPhase) {
+                (updatedEnemy as any).transformPhase = newPhase;
                 if (newPhase === 2) {
-                  enemy.attack += 5;
-                  console.log(`[Boss] ${enemy.name}进入第二阶段！攻击+5`);
+                  updatedEnemy.attack += 5;
+                  console.log(`[Boss] ${updatedEnemy.name}进入第二阶段！攻击+5`);
                 } else if (newPhase === 3) {
-                  enemy.attack += 8;
+                  updatedEnemy.attack += 8;
                   damage *= 1.5;
-                  console.log(`[Boss] ${enemy.name}进入第三阶段！攻击+8，伤害x1.5`);
+                  console.log(`[Boss] ${updatedEnemy.name}进入第三阶段！攻击+8，伤害x1.5`);
                 }
               }
               break;
             case 'bossDistributed':
               // 分布式系统：3个节点同时存在，必须全部击败
-              if (!(enemy as any).nodesSpawned) {
-                (enemy as any).nodesSpawned = true;
+              if (!(updatedEnemy as any).nodesSpawned) {
+                (updatedEnemy as any).nodesSpawned = true;
                 // 生成2个额外节点
-                const node1: Enemy = { ...enemy, id: enemy.id + '_node1', name: '数据节点A', currentHealth: enemy.maxHealth * 0.3, maxHealth: enemy.maxHealth * 0.3 };
-                const node2: Enemy = { ...enemy, id: enemy.id + '_node2', name: '数据节点B', currentHealth: enemy.maxHealth * 0.3, maxHealth: enemy.maxHealth * 0.3 };
-                newState.currentEnemies = [...newState.currentEnemies, node1, node2];
-                console.log(`[Boss] ${enemy.name}分裂为3个数据节点！`);
+                const node1: Enemy = { ...updatedEnemy, id: updatedEnemy.id + '_node1', name: '数据节点A', currentHealth: updatedEnemy.maxHealth * 0.3, maxHealth: updatedEnemy.maxHealth * 0.3 };
+                const node2: Enemy = { ...updatedEnemy, id: updatedEnemy.id + '_node2', name: '数据节点B', currentHealth: updatedEnemy.maxHealth * 0.3, maxHealth: updatedEnemy.maxHealth * 0.3 };
+                // 收集新敌人，在map结束后再添加
+                newEnemiesToAdd.push(node1, node2);
+                console.log(`[Boss] ${updatedEnemy.name}分裂为3个数据节点！`);
               }
               break;
           }
           
           // 应用伤害前检查埋伏效果
-          if (newState.ambushEffects && newState.ambushEffects.length > 0 && enemy.intent?.type === 'attack') {
+          if (newState.ambushEffects && newState.ambushEffects.length > 0 && updatedEnemy.intent?.type === 'attack') {
             // 处理取消并晕眩埋伏
             const cancelStunEffects = newState.ambushEffects.filter(a => a.type === 'cancel_stun');
             if (cancelStunEffects.length > 0) {
               // 取消这次攻击并晕眩敌人
               damage = 0;
-              (enemy as any).stunned = ((enemy as any).stunned || 0) + 1;
-              console.log(`[Ambush] 埋伏触发！取消${enemy.name}的攻击并晕眩`);
+              (updatedEnemy as any).stunned = ((updatedEnemy as any).stunned || 0) + 1;
+              console.log(`[Ambush] 埋伏触发！取消${updatedEnemy.name}的攻击并晕眩`);
               // 消费掉这个埋伏效果
               newState.ambushEffects = newState.ambushEffects.filter(a => a.type !== 'cancel_stun');
             }
@@ -3129,8 +3320,8 @@ export function useGameState() {
             // 处理伤害埋伏
             const damageEffects = newState.ambushEffects.filter(a => a.type === 'damage');
             damageEffects.forEach(ambush => {
-              enemy.currentHealth = Math.max(0, enemy.currentHealth - ambush.value);
-              console.log(`[Ambush] 埋伏触发！${enemy.name}受到${ambush.value}点伤害`);
+              updatedEnemy.currentHealth = Math.max(0, updatedEnemy.currentHealth - ambush.value);
+              console.log(`[Ambush] 埋伏触发！${updatedEnemy.name}受到${ambush.value}点伤害`);
             });
             
             // 处理吸血埋伏
@@ -3188,21 +3379,21 @@ export function useGameState() {
           
           // 记录敌人行动（合并行动和伤害）
           if (!newState.combatLog) newState.combatLog = [];
-          const intentType = enemy.intent?.type || 'attack';
+          const intentType = updatedEnemy.intent?.type || 'attack';
           const damageInfo = totalDamageTaken > 0 ? ` (造成 ${totalDamageTaken} 伤害)` : '';
           newState.combatLog.push({
             turn: newState.turn,
             type: 'enemy_action',
-            description: `${enemy.name} 使用 ${intentType}${damageInfo}`,
-            target: enemy.name,
+            description: `${updatedEnemy.name} 使用 ${intentType}${damageInfo}`,
+            target: updatedEnemy.name,
             value: totalDamageTaken || damage
           });
           
           // 应用反击效果
           if (totalDamageTaken > 0 && newState.retaliate && newState.retaliate > 0) {
             const retaliateDamage = newState.retaliate;
-            enemy.currentHealth = Math.max(0, enemy.currentHealth - retaliateDamage);
-            console.log(`[Retaliate] 反击${retaliateDamage}点伤害给${enemy.name}！`);
+            updatedEnemy.currentHealth = Math.max(0, updatedEnemy.currentHealth - retaliateDamage);
+            console.log(`[Retaliate] 反击${retaliateDamage}点伤害给${updatedEnemy.name}！`);
           }
           
           // 如果敌人有护盾，给玩家反弹伤害
@@ -3210,11 +3401,19 @@ export function useGameState() {
             const reflectAmount = Math.floor(damage * 0.25);
             if (reflectAmount > 0 && newState.characters[0]) {
               newState.characters[0].currentEnergy -= reflectAmount;
-              console.log(`[Reflect] ${enemy.name}反伤${reflectAmount}点给玩家！`);
+              console.log(`[Reflect] ${updatedEnemy.name}反伤${reflectAmount}点给玩家！`);
             }
           }
         }
+        
+        // 确保返回更新后的敌人
+        return updatedEnemy;
       });
+      
+      // 添加由split/summon/bossDistributed等能力生成的新敌人
+      if (newEnemiesToAdd.length > 0) {
+        newState.currentEnemies = [...newState.currentEnemies, ...newEnemiesToAdd];
+      }
       
       // 检查死亡（处理免死效果）
       if (newState.characters[0]?.currentEnergy <= 0) {
@@ -3275,6 +3474,17 @@ export function useGameState() {
         }
 
         console.log(`[Victory] 战斗胜利！获得 ${reward} 金钱`);
+        
+        // 处理诅咒牌效果：战斗结束受到伤害
+        if (newState.endCombatDamage && newState.endCombatDamage > 0) {
+          const char = newState.characters[0];
+          if (char) {
+            char.currentEnergy = Math.max(0, char.currentEnergy - newState.endCombatDamage);
+            console.log(`[Curse] 构建失败: 战斗结束失去${newState.endCombatDamage}生命`);
+            toast.error(`构建失败！失去 ${newState.endCombatDamage} 生命`, { description: '诅咒牌效果触发' });
+          }
+          newState.endCombatDamage = 0;
+        }
         
         if (isBoss) {
           if (newState.currentFloor >= newState.floors.length - 1) {
@@ -3416,8 +3626,15 @@ export function useGameState() {
         return enemy;
       });
       
-      newState.discard = [...newState.discard, ...newState.hand];
-      newState.hand = [];
+      // 晕眩时保留手牌，不抽新牌；正常回合弃牌抽新牌
+      if (newState.playerStunned && newState.playerStunned > 0) {
+        // 晕眩状态：保留当前手牌，不抽新牌
+        console.log(`[PlayerStunned] 晕眩中，保留手牌${newState.hand.length}张，跳过抽牌`);
+      } else {
+        // 正常回合：弃牌并抽新牌
+        newState.discard = [...newState.discard, ...newState.hand];
+        newState.hand = [];
+      }
       
       const stats = computeStats(newState.hardware);
       newState.currentCost = stats.maxEnergy - (newState.nextTurnCostPenalty || 0);
@@ -3451,17 +3668,27 @@ export function useGameState() {
         newState.allShield5Next = 0;
       }
       
-      // 高松灯特性：每回合首次抽牌时，额外抽1张
-      const baseDraw = stats.drawPower + (newState.nextTurnDrawBonus || 0);
-      const extraDraw = newState.characters[0]?.id === 'tomori' ? 1 : 0;
-      if (extraDraw > 0) {
-        console.log(`[Character] 高松灯：回合抽牌额外+1！`);
+      // 将延迟的卡牌加入手牌
+      if (newState.delayedCards && newState.delayedCards.length > 0) {
+        newState.hand = [...newState.hand, ...newState.delayedCards];
+        console.log(`[DelayedCards] 将${newState.delayedCards.length}张延迟卡牌加入手牌`);
+        newState.delayedCards = [];
       }
-      const drawResult = drawCards(baseDraw + extraDraw, 
-        newState.deck, newState.hand, newState.discard);
-      newState.deck = drawResult.deck;
-      newState.hand = drawResult.hand;
-      newState.discard = drawResult.discard;
+      
+      // 高松灯特性：每回合首次抽牌时，额外抽1张
+      // 晕眩时不抽牌，正常回合抽牌
+      if (!(newState.playerStunned && newState.playerStunned > 0)) {
+        const baseDraw = stats.drawPower + (newState.nextTurnDrawBonus || 0);
+        const extraDraw = newState.characters[0]?.id === 'tomori' ? 1 : 0;
+        if (extraDraw > 0) {
+          console.log(`[Character] 高松灯：回合抽牌额外+1！`);
+        }
+        const drawResult = drawCards(baseDraw + extraDraw, 
+          newState.deck, newState.hand, newState.discard);
+        newState.deck = drawResult.deck;
+        newState.hand = drawResult.hand;
+        newState.discard = drawResult.discard;
+      }
       newState.nextTurnDrawBonus = 0;
       
       return newState;
@@ -3541,6 +3768,9 @@ export function useGameState() {
           console.log(`[Event] Boss战！敌人强化生命x1.5`);
         }
         
+        // 保留当前手牌，将牌库和弃牌堆洗回牌库
+        const combinedDeck = shuffleDeck([...prev.deck, ...prev.discard]);
+        
         return {
           ...prev,
           gamePhase: 'combat',
@@ -3548,8 +3778,8 @@ export function useGameState() {
           forceBossNow: false,
           turn: 1,
           isPlayerTurn: true,
-          deck: shuffleDeck([...prev.deck, ...prev.hand, ...prev.discard]),
-          hand: [],
+          deck: combinedDeck,
+          // 保留手牌，不清空
           discard: [],
           tempShield: 0,
           cardsPlayedThisTurn: 0
@@ -3620,46 +3850,95 @@ export function useGameState() {
   }, []);
 
   // 硬件购买方法
-  const buyMotherboard = useCallback((_mobo?: any) => {
+  const buyMotherboard = useCallback((mobo: any) => {
     setGameState(prev => {
-      if (prev.money < 100) return prev;
-      return { ...prev, money: prev.money - 100 };
+      if (prev.money < mobo.price) return prev;
+      return { 
+        ...prev, 
+        money: prev.money - mobo.price,
+        hardware: { ...prev.hardware, motherboard: mobo }
+      };
     });
   }, []);
 
-  const buyCPU = useCallback((_cpu?: any) => {
+  const buyCPU = useCallback((cpu: any) => {
     setGameState(prev => {
-      if (prev.money < 200) return prev;
-      return { ...prev, money: prev.money - 200 };
+      if (prev.money < cpu.price) return prev;
+      return { 
+        ...prev, 
+        money: prev.money - cpu.price,
+        hardware: { ...prev.hardware, cpu: cpu }
+      };
     });
   }, []);
 
-  const buyRAM = useCallback((_ram?: any) => {
+  const buyRAM = useCallback((ram: any) => {
     setGameState(prev => {
-      if (prev.money < 60) return prev;
-      return { ...prev, money: prev.money - 60 };
+      if (prev.money < ram.price) return prev;
+      // 检查主板内存槽限制
+      const maxSlots = prev.hardware.motherboard?.ramSlots || 2;
+      if (prev.hardware.ramSticks.length >= maxSlots) {
+        console.log(`[BuyRAM] 内存槽已满，无法安装更多内存`);
+        return prev;
+      }
+      return { 
+        ...prev, 
+        money: prev.money - ram.price,
+        hardware: { 
+          ...prev.hardware, 
+          ramSticks: [...prev.hardware.ramSticks, ram]
+        }
+      };
     });
   }, []);
 
-  const sellRAM = useCallback((_index?: number) => {
-    setGameState(prev => ({ ...prev, money: prev.money + 30 }));
+  const sellRAM = useCallback((index: number) => {
+    setGameState(prev => {
+      if (index < 0 || index >= prev.hardware.ramSticks.length) return prev;
+      const soldRam = prev.hardware.ramSticks[index];
+      const refund = Math.floor(soldRam.price * 0.5); // 出售价格50%返还
+      return { 
+        ...prev, 
+        money: prev.money + refund,
+        hardware: {
+          ...prev.hardware,
+          ramSticks: prev.hardware.ramSticks.filter((_, i) => i !== index)
+        }
+      };
+    });
   }, []);
 
-  const buyGPU = useCallback((_gpu?: any) => {
+  const buyGPU = useCallback((gpu: any) => {
     setGameState(prev => {
-      if (prev.money < 300) return prev;
-      return { ...prev, money: prev.money - 300 };
+      if (prev.money < gpu.price) return prev;
+      return { 
+        ...prev, 
+        money: prev.money - gpu.price,
+        hardware: { ...prev.hardware, gpu: gpu }
+      };
     });
   }, []);
 
   const sellGPU = useCallback(() => {
-    setGameState(prev => ({ ...prev, money: prev.money + 150 }));
+    setGameState(prev => {
+      if (!prev.hardware.gpu) return prev;
+      const refund = Math.floor(prev.hardware.gpu.price * 0.5);
+      return { 
+        ...prev, 
+        money: prev.money + refund,
+        hardware: { ...prev.hardware, gpu: null }
+      };
+    });
   }, []);
 
-  const buyPSU = useCallback((_psu?: any) => {
+  const buyPSU = useCallback((psu: any) => {
     setGameState(prev => {
-      if (prev.money < 80) return prev;
-      return { ...prev, money: prev.money - 80 };
+      if (prev.money < psu.price) return prev;
+      return { 
+        ...prev, 
+        money: prev.money - psu.price,
+        hardware: { ...prev.hardware, psu: psu }
+      };
     });
   }, []);
 
@@ -3710,6 +3989,84 @@ export function useGameState() {
     });
   }, []);
 
+  // 完成灵感选择
+  const completeInspiration = useCallback((selectedIndices: number[], discardedIndices?: number[], remainingOrder?: number[]) => {
+    setGameState(prev => {
+      if (!prev.inspiration || !prev.inspiration.isActive) return prev;
+      
+      const newState = { ...prev };
+      const inspiration = prev.inspiration;
+      
+      // 获取选中的卡牌
+      const selectedCards = selectedIndices.map(i => inspiration.cards[i]);
+      const discardedCards = discardedIndices?.map(i => inspiration.cards[i]) || [];
+      
+      // 根据回调类型处理结果
+      switch (inspiration.callbackAction) {
+        case 'scry_3_pick_1':
+          // 将选中的卡牌加入手牌，其余放回牌库底
+          newState.hand = [...newState.hand, ...selectedCards];
+          const remainingCards1 = inspiration.cards.filter((_, i) => !selectedIndices.includes(i));
+          newState.deck = [...newState.deck, ...remainingCards1];
+          console.log(`[Inspiration] 选择${selectedCards.length}张加入手牌，${remainingCards1.length}张放回牌库`);
+          break;
+          
+        case 'draw_2_choose_discount':
+          // 选中的加入手牌，弃掉的弃掉，并给予费用减免
+          if (selectedCards.length > 0) {
+            newState.hand = [...newState.hand, selectedCards[0]];
+            // 弃掉未选中的
+            const unselected = inspiration.cards.filter((_, i) => !selectedIndices.includes(i));
+            newState.discard = [...newState.discard, ...unselected];
+            // 费用减免
+            newState.nextCardCostMinus = (newState.nextCardCostMinus || 0) + 1;
+            console.log(`[Inspiration] 保留${selectedCards[0].name}，弃掉${unselected.length}张，下张费用-1`);
+          }
+          break;
+          
+        case 'scry_5_arrange':
+          // 按照玩家指定的顺序将卡牌放回牌库顶，弃掉的放入弃牌堆
+          const orderedRemaining = remainingOrder?.map(i => inspiration.cards[i]) || 
+            inspiration.cards.filter((_, i) => !selectedIndices.includes(i) && !(discardedIndices || []).includes(i));
+          newState.deck = [...orderedRemaining, ...newState.deck];
+          newState.discard = [...newState.discard, ...discardedCards];
+          console.log(`[Inspiration] 保留${orderedRemaining.length}张在牌库顶，弃掉${discardedCards.length}张`);
+          break;
+          
+        case 'scry_10_fetch_3':
+          // 将选中的3张加入手牌，其余放回牌库底
+          newState.hand = [...newState.hand, ...selectedCards];
+          const remainingCards10 = inspiration.cards.filter((_, i) => !selectedIndices.includes(i));
+          newState.deck = [...newState.deck, ...remainingCards10];
+          console.log(`[Inspiration] 选择${selectedCards.length}张加入手牌，${remainingCards10.length}张放回牌库`);
+          break;
+          
+        case 'choose_shield_or_draw':
+          // 根据选择的选项执行效果
+          if (selectedCards.length > 0) {
+            const choice = selectedCards[0];
+            if (choice.id === 'inspiration_shield_8') {
+              newState.tempShield = (newState.tempShield || 0) + 8;
+              console.log(`[Inspiration] 选择获得8点护盾`);
+            } else if (choice.id === 'inspiration_draw_2') {
+              // 抽2张牌
+              const dr = drawCards(2, newState.deck, newState.hand, newState.discard);
+              newState.deck = dr.deck;
+              newState.hand = dr.hand;
+              newState.discard = dr.discard;
+              console.log(`[Inspiration] 选择抽2张牌`);
+            }
+          }
+          break;
+      }
+      
+      // 清除灵感状态
+      newState.inspiration = undefined;
+      
+      return newState;
+    });
+  }, [drawCards]);
+
   return {
     gameState,
     setGameState,
@@ -3739,5 +4096,6 @@ export function useGameState() {
     selectReward,
     skipReward,
     addCombatLog,
+    completeInspiration,
   };
 }

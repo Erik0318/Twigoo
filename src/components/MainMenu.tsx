@@ -161,7 +161,7 @@ export function MainMenu({ onStartGame, onPlayBGM, onVolumeChange }: MainMenuPro
 
       {/* 版本信息 */}
       <div className="absolute bottom-4 text-slate-600 text-xs font-mono">
-        v4.0 | 2026.02.12 | 平衡性重置版 | Bang Dream! Our Codes
+        α1 版本 | 2026.02.16 | Bang Dream! Our Codes
       </div>
     </div>
   );

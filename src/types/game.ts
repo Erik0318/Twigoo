@@ -260,6 +260,7 @@ export interface GameState {
   ambushEffects?: AmbushEffect[];  // 埋伏效果队列
   dotEffects?: DotEffect[];        // 持续伤害效果
   delayedEffects?: DelayedEffect[]; // 延迟触发效果
+  delayedCards?: Card[]; // 延迟到下回合的卡牌
   
   // ===== 新增: 动态费用系统 =====
   dynamicCostModifiers?: { [cardId: string]: number };  // 动态费用修正
@@ -292,9 +293,13 @@ export interface GameState {
   next2CardsDouble?: number;       // 下2张牌双倍
   noDefenseThisTurn?: boolean;     // 本回合无法打出防御牌
   allCardsCostZero?: boolean;      // 所有卡牌费用为0
+  endCombatDamage?: number;        // 战斗结束时受到的伤害（诅咒牌）
   
   // 战斗记录
   combatLog?: CombatLogEntry[];
+  
+  // ===== 新增: 灵感选择系统 =====
+  inspiration?: InspirationState;
 }
 
 // 战斗记录条目
@@ -372,4 +377,35 @@ export interface GameConfig {
   initialHardware: HardwareInventory;
   maxFloors: number;
   cardsPerReward: number;
+}
+
+// ===== 新增: 灵感选择系统 =====
+
+// 灵感选择类型
+export type InspirationType = 
+  | 'scry_pick'      // 查看并选择
+  | 'scry_arrange'   // 查看并安排顺序/弃牌
+  | 'choose_one'     // 多选一
+  | 'choose_split';  // 选择分割（如弃一部分留一部分）
+
+// 灵感选择状态
+export interface InspirationState {
+  isActive: boolean;           // 是否正在进行灵感选择
+  type: InspirationType;       // 选择类型
+  title: string;              // 标题
+  description: string;        // 描述
+  cards: Card[];              // 可供选择的卡牌
+  selectCount: number;        // 需要选择的数量
+  minSelect?: number;         // 最少选择数量
+  canDiscard?: boolean;       // 是否可以弃掉卡牌
+  canReorder?: boolean;       // 是否可以重新排序
+  sourceCardName: string;     // 触发此灵感的卡牌名称
+  callbackAction?: string;    // 选择完成后的回调动作标识
+}
+
+// 灵感选择结果
+export interface InspirationResult {
+  selectedCards: Card[];      // 选中的卡牌
+  discardedCards?: Card[];    // 弃掉的卡牌（如果有）
+  remainingCards?: Card[];    // 剩余放回牌库的卡牌（按顺序）
 }

@@ -87,28 +87,28 @@ export function getCardPrice(card: Card): number {
 
 export const characterCards: Record<string, Card[]> = {
   tomori: [
-    { id: 'guitar_solo', name: '吉他SOLO', cost: 2, type: 'attack', rarity: 'rare', description: '造成15点伤害。如果本回合使用过技能，伤害+10', effect: { type: 'damage', value: 15, target: 'enemy', extraEffect: 'skill_bonus_10' }, icon: 'Music' },
+    { id: 'guitar_solo', name: '吉他SOLO', cost: 2, type: 'attack', rarity: 'rare', description: '造成15点伤害。如果本回合使用过技能，伤害+5', effect: { type: 'damage', value: 15, target: 'enemy', extraEffect: 'skill_bonus_5' }, icon: 'Music' },
     { id: 'improvise', name: '即兴演奏', cost: 1, type: 'skill', rarity: 'rare', description: '抽2张牌，本回合手牌上限+2', effect: { type: 'draw', value: 2, target: 'self', extraEffect: 'hand_size_plus_2' }, icon: 'Music2' },
-    { id: 'rhythm_sync', name: '全员诗超绊', cost: 2, type: 'attack', rarity: 'rare', description: '对所有敌人造成12点伤害，获得10护盾', effect: { type: 'damage', value: 12, target: 'all', extraEffect: 'shield_10' }, icon: 'Metronome' },
+    { id: 'rhythm_sync', name: '全员诗超绊', cost: 2, type: 'attack', rarity: 'rare', description: '对所有敌人造成12点伤害，获得10护盾', effect: { type: 'damage', value: 12, target: 'all', extraEffect: 'shield_10' }, icon: 'Users' },
   ],
   anon: [
-    { id: 'crazy_solo', name: '疯狂SOLO', cost: 1, type: 'attack', rarity: 'rare', description: '造成10点伤害，本回合下一张牌费用-2', effect: { type: 'damage', value: 10, target: 'enemy', extraEffect: 'next_cost_minus_2' }, icon: 'Zap' },
+    { id: 'crazy_solo', name: '疯狂SOLO', cost: 1, type: 'attack', rarity: 'rare', description: '造成10点伤害，本回合下一张牌费用-1', effect: { type: 'damage', value: 10, target: 'enemy', extraEffect: 'next_cost_minus_1' }, icon: 'Zap' },
     { id: 'improv_accompaniment', name: '即兴伴奏', cost: 0, type: 'skill', rarity: 'rare', description: '抽1张牌，0费攻击伤害+5', effect: { type: 'draw', value: 1, target: 'self', extraEffect: 'zero_attack_bonus_5' }, icon: 'Mic' },
-    { id: 'stage_presence', name: '舞台魅力', cost: 1, type: 'skill', rarity: 'rare', description: '本回合所有攻击牌伤害+6', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'all_attack_bonus_6' }, icon: 'Star' },
+    { id: 'stage_presence', name: '舞台魅力', cost: 1, type: 'skill', rarity: 'rare', description: '本回合所有攻击牌伤害+4', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'all_attack_bonus_4' }, icon: 'Star' },
   ],
   rana: [
     { id: 'bass_line', name: '贝斯Line', cost: 1, type: 'attack', rarity: 'rare', description: '造成8点伤害，获得等量护盾', effect: { type: 'damage', value: 8, target: 'enemy', extraEffect: 'lifesteal_shield' }, icon: 'Music' },
     { id: 'melody_solo', name: '旋律独奏', cost: 0, type: 'skill', rarity: 'rare', description: '抽2张牌，本回合费用-1', effect: { type: 'draw', value: 2, target: 'self', extraEffect: 'cost_minus_1' }, icon: 'Music2' },
-    { id: 'sound_wave', name: '音波冲击', cost: 2, type: 'attack', rarity: 'rare', description: '对所有敌人造成8点伤害，手牌上限+2本回合', effect: { type: 'damage', value: 8, target: 'all', extraEffect: 'hand_size_plus_2' }, icon: 'Waves' },
+    { id: 'sound_wave', name: '音波冲击', cost: 2, type: 'attack', rarity: 'rare', description: '对所有敌人造成8点伤害，手牌上限+2本回合', effect: { type: 'damage', value: 8, target: 'all', extraEffect: 'hand_size_plus_2' }, icon: 'AudioLines' },
   ],
   soyo: [
-    { id: 'keyboard_harmony', name: '键盘和音', cost: 1, type: 'defense', rarity: 'rare', description: '获得12护盾，复制1张手牌', effect: { type: 'shield', value: 12, target: 'self', extraEffect: 'copy_hand_1' }, icon: 'Piano' },
-    { id: 'healing_melody', name: '治愈旋律', cost: 2, type: 'skill', rarity: 'rare', description: '恢复20生命，移除所有负面效果', effect: { type: 'heal', value: 20, target: 'self', extraEffect: 'cleanse_all' }, icon: 'Heart' },
+    { id: 'keyboard_harmony', name: '键盘和音', cost: 1, type: 'defense', rarity: 'rare', description: '获得12护盾，复制1张手牌', effect: { type: 'shield', value: 12, target: 'self', extraEffect: 'copy_1_hand' }, icon: 'Piano' },
+    { id: 'healing_melody', name: '治愈旋律', cost: 2, type: 'skill', rarity: 'rare', description: '恢复20生命，移除所有负面效果，抽2张牌', effect: { type: 'heal', value: 20, target: 'self', extraEffect: 'cleanse_draw_2' }, icon: 'Heart' },
     { id: 'chorus', name: '合唱', cost: 2, type: 'skill', rarity: 'rare', description: '抽4张牌，弃掉其中的攻击牌', effect: { type: 'draw', value: 4, target: 'self', extraEffect: 'filter_attacks' }, icon: 'Users' },
   ],
   taki: [
-    { id: 'drum_beat', name: '鼓点', cost: 1, type: 'attack', rarity: 'rare', description: '造成9点伤害。如果是手牌最后一张，造成18点', effect: { type: 'damage', value: 9, target: 'enemy', extraEffect: 'last_card_double' }, icon: 'Drum' },
-    { id: 'rhythm_mastery', name: '节奏掌控', cost: 1, type: 'skill', rarity: 'rare', description: '下3张攻击牌伤害+4', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'next_3_attack_bonus_4' }, icon: 'Timer' },
+    { id: 'drum_beat', name: '鼓点', cost: 1, type: 'attack', rarity: 'rare', description: '造成9点伤害。如果是手牌最左侧，造成18点', effect: { type: 'damage', value: 9, target: 'enemy', extraEffect: 'leftmost_double' }, icon: 'Drum' },
+    { id: 'rhythm_mastery', name: '节奏掌控', cost: 1, type: 'skill', rarity: 'rare', description: '下2张攻击牌伤害+5', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'next_2_attack_bonus_5' }, icon: 'Timer' },
     { id: 'intense_drum_solo', name: '激烈鼓独奏', cost: 2, type: 'attack', rarity: 'rare', description: '造成15点伤害，晕眩1回合', effect: { type: 'damage', value: 15, target: 'enemy', extraEffect: 'stun_1' }, icon: 'Flame' },
   ],
 };

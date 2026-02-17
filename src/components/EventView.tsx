@@ -15,9 +15,14 @@ export function EventView({ gameState, onLeave, onEffectApplied }: EventViewProp
   const [event] = useState(() => getRandomEvent());
   const [hasChosen, setHasChosen] = useState(false);
   const [result, setResult] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleChoice = (choiceIndex: number) => {
-    if (hasChosen) return;
+    // 严格防护：已选择或正在处理中时禁止触发
+    if (hasChosen || isProcessing) return;
+    
+    // 立即设置处理中状态，防止快速点击重复触发
+    setIsProcessing(true);
     
     const choice = event.choices[choiceIndex];
     
@@ -31,6 +36,8 @@ export function EventView({ gameState, onLeave, onEffectApplied }: EventViewProp
     
     setResult(choice.text);
     setHasChosen(true);
+    // 效果处理完成后重置处理状态（虽然hasChosen已经为true，但保险起见）
+    setIsProcessing(false);
   };
 
   return (

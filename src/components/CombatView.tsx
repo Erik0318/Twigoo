@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { GameState } from '@/types/game';
+import type { GameState, InspirationResult } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CombatLogTree } from './CombatLogTree';
+import { InspirationView } from './InspirationView';
 import { 
   Cpu, MemoryStick, Zap, Heart, Shield, Coins, Swords, Skull, Sparkles, Wind,
   // 攻击图标
@@ -12,9 +13,11 @@ import {
   // 防御图标
   ShieldPlus, ShieldCheck, Castle, Building2, AlertTriangle, RefreshCw, Bomb, Magnet, Users, CircleDot, Lock, FlipHorizontal, BatteryCharging, PlusCircle, Sprout, Calculator,
   // 技能图标
-  Search, Scan, Brain, Eye, Battery, Power, Activity, Recycle, Trash2, ArrowLeftRight, Layers, Settings, Megaphone, Gem, Clock, Database, Crown, Map, Briefcase, Network, Bot, Terminal, Volume2, Award, Banknote,
+  Search, Scan, Brain, Eye, Battery, Power, Activity, Recycle, Trash2, ArrowLeftRight, Layers, Settings, Megaphone, Gem, Clock, Database, Crown, Map, Briefcase, Network, Bot, Terminal, Volume2, VolumeX, Award, Banknote, Cog,
   // 通用
-  Flame, Feather, Lightbulb, MessageCircle, CloudRain, Footprints, BookOpen, User, Plane, Coffee, TrendingUp, Video, ShoppingBag, Theater, Smile, Meh, School, Link, Mic, Music, Cat, Bird, Sun as SunIcon, Trees, Gift, Wand2, Dice5, Shuffle, BookUser, ShieldAlert, Home, Skull as SkullIcon, Ban
+  Flame, Feather, Lightbulb, MessageCircle, CloudRain, Footprints, BookOpen, User, Plane, Coffee, TrendingUp, Video, ShoppingBag, Theater, Smile, Meh, School, Link, Mic, Music, Cat, Bird, Sun as SunIcon, Trees, Gift, Wand2, Dice5, Shuffle, BookUser, ShieldAlert, Home, Skull as SkullIcon, Ban,
+  // 额外图标
+  AudioLines
 } from 'lucide-react';
 import { computeStats } from '@/data/hardware';
 import { formatCardDescription } from '@/data/cards';
@@ -24,6 +27,7 @@ interface CombatViewProps {
   onPlayCard: (cardIndex: number, targetIndex?: number) => void;
   onEndTurn: () => void;
   onPlaySFX?: (type: 'attack' | 'shield' | 'cardPlay' | 'damage') => void;
+  onCompleteInspiration?: (selectedIndices: number[], discardedIndices?: number[], remainingOrder?: number[]) => void;
 }
 
 // 角色动画状态
@@ -32,12 +36,45 @@ interface CharacterAnimation {
   timestamp: number;
 }
 
-export function CombatView({ gameState, onPlayCard, onEndTurn, onPlaySFX }: CombatViewProps) {
+export function CombatView({ gameState, onPlayCard, onEndTurn, onPlaySFX, onCompleteInspiration }: CombatViewProps) {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<number>(0);
   const [damageNumbers, setDamageNumbers] = useState<{[key: string]: number}>({});
   const [charAnim, setCharAnim] = useState<CharacterAnimation>({ state: 'idle', timestamp: Date.now() });
   const [showCombatLog, setShowCombatLog] = useState(false);
+  
+  // 处理灵感选择完成
+  const handleInspirationComplete = (result: InspirationResult) => {
+    if (onCompleteInspiration) {
+      // 将选中的卡牌转换为索引数组
+      const selectedIndices: number[] = [];
+      const discardedIndices: number[] = [];
+      const remainingOrder: number[] = [];
+      
+      const inspiration = gameState.inspiration;
+      if (inspiration) {
+        // 找到选中卡牌在原始数组中的索引
+        result.selectedCards.forEach(card => {
+          const idx = inspiration.cards.findIndex(c => c.id === card.id);
+          if (idx !== -1) selectedIndices.push(idx);
+        });
+        
+        // 找到弃掉卡牌在原始数组中的索引
+        result.discardedCards?.forEach(card => {
+          const idx = inspiration.cards.findIndex(c => c.id === card.id);
+          if (idx !== -1) discardedIndices.push(idx);
+        });
+        
+        // 找到剩余卡牌的顺序
+        result.remainingCards?.forEach(card => {
+          const idx = inspiration.cards.findIndex(c => c.id === card.id);
+          if (idx !== -1) remainingOrder.push(idx);
+        });
+      }
+      
+      onCompleteInspiration(selectedIndices, discardedIndices, remainingOrder);
+    }
+  };
 
   const character = gameState.characters[0];
   const stats = computeStats(gameState.hardware);
@@ -260,6 +297,8 @@ export function CombatView({ gameState, onPlayCard, onEndTurn, onPlaySFX }: Comb
     'User': <User className="w-5 h-5 text-purple-400" />,
     'Plane': <Plane className="w-5 h-5 text-purple-400" />,
     'Drum': <Volume2 className="w-5 h-5 text-purple-400" />,
+    'VolumeX': <VolumeX className="w-5 h-5 text-red-400" />,
+    'Cucumber': <Sprout className="w-5 h-5 text-blue-400" />,
     'TrendingUp': <TrendingUp className="w-5 h-5 text-purple-400" />,
     'Video': <Video className="w-5 h-5 text-purple-400" />,
     'ShoppingBag': <ShoppingBag className="w-5 h-5 text-purple-400" />,
@@ -273,7 +312,10 @@ export function CombatView({ gameState, onPlayCard, onEndTurn, onPlaySFX }: Comb
     'Gift': <Gift className="w-5 h-5 text-purple-400" />,
     'Wand2': <Wand2 className="w-5 h-5 text-purple-400" />,
     'Dice5': <Dice5 className="w-5 h-5 text-purple-400" />,
+    'Dices': <Dice5 className="w-5 h-5 text-red-400" />,
     'Shuffle': <Shuffle className="w-5 h-5 text-purple-400" />,
+    'AudioLines': <AudioLines className="w-5 h-5 text-red-400" />,
+    'Cog': <Cog className="w-5 h-5 text-green-400" />,
     'Theater': <Theater className="w-5 h-5 text-purple-400" />,
     'Smile': <Smile className="w-5 h-5 text-purple-400" />,
     'Meh': <Meh className="w-5 h-5 text-purple-400" />,
@@ -759,6 +801,14 @@ export function CombatView({ gameState, onPlayCard, onEndTurn, onPlaySFX }: Comb
         isOpen={showCombatLog}
         onToggle={() => setShowCombatLog(!showCombatLog)}
       />
+      
+      {/* 灵感选择系统 */}
+      {gameState.inspiration?.isActive && onCompleteInspiration && (
+        <InspirationView 
+          gameState={gameState}
+          onComplete={handleInspirationComplete}
+        />
+      )}
     </div>
   );
 }

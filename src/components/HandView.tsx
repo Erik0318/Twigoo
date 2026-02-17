@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { X, Shield, Zap, Sparkles, Layers } from 'lucide-react';
+import { X, Shield, Zap, Sparkles, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { GameState } from '@/types/game';
 import { formatCardDescription } from '@/data/cards';
 
@@ -9,13 +10,30 @@ interface HandViewProps {
   onClose: () => void;
 }
 
+const CARDS_PER_PAGE = 12;
+
 export function HandView({ gameState, onClose }: HandViewProps) {
+  const [currentPage, setCurrentPage] = useState(0);
+  
   // 合并所有卡牌：手牌 + 牌库 + 弃牌堆
   const allCards = [
     ...gameState.hand.map(c => ({ ...c, location: 'hand' })),
     ...gameState.deck.map(c => ({ ...c, location: 'deck' })),
     ...gameState.discard.map(c => ({ ...c, location: 'discard' }))
   ];
+  
+  // 分页计算
+  const totalPages = Math.ceil(allCards.length / CARDS_PER_PAGE);
+  const startIndex = currentPage * CARDS_PER_PAGE;
+  const paginatedCards = allCards.slice(startIndex, startIndex + CARDS_PER_PAGE);
+  
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1));
+  };
+  
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+  };
 
   const getCardColor = (type: string) => {
     switch (type) {
@@ -81,7 +99,7 @@ export function HandView({ gameState, onClose }: HandViewProps) {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {allCards.map((card: any, index) => (
+              {paginatedCards.map((card: any, index) => (
                 <Card
                   key={`${card.id}-${index}`}
                   className={`p-3 cursor-pointer transition-all hover:scale-105 ${getCardColor(card.type)}`}
@@ -117,9 +135,37 @@ export function HandView({ gameState, onClose }: HandViewProps) {
           )}
         </div>
 
-        {/* 统计信息 */}
-        <div className="p-4 border-t border-slate-700 text-center text-slate-400 text-sm">
-          共 {allCards.length} 张卡牌
+        {/* 分页控件和统计信息 */}
+        <div className="p-4 border-t border-slate-700 flex justify-between items-center">
+          <div className="text-slate-400 text-sm">
+            共 {allCards.length} 张卡牌
+          </div>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 0}
+                className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-slate-300 text-sm px-2">
+                {currentPage + 1} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages - 1}
+                className="border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
     </div>

@@ -55,6 +55,7 @@ function App() {
     skipTutorial,         // 跳过教程
     selectReward,        // 选择奖励卡牌
     skipReward,           // 跳过奖励
+    completeInspiration, // 完成灵感选择
   } = useGameState();
 
   // ==================== 音频管理 ====================
@@ -346,6 +347,7 @@ function App() {
             onPlayCard={playCard}
             onEndTurn={endTurn}
             onPlaySFX={playSFX}
+            onCompleteInspiration={completeInspiration}
           />
         );
       
