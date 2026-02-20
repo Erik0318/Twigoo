@@ -10,20 +10,20 @@ import type { Card } from '@/types/game';
 
 const commonAttacks: Card[] = [
   // 基础攻击
-  { id: 'strike', name: '普通攻击', cost: 1, type: 'attack', rarity: 'common', description: '造成8点伤害', effect: { type: 'damage', value: 8, target: 'enemy' }, icon: 'Sword' },
-  { id: 'heavy_strike', name: '重击', cost: 2, type: 'attack', rarity: 'common', description: '造成14点伤害', effect: { type: 'damage', value: 14, target: 'enemy' }, icon: 'Hammer' },
+  { id: 'strike', name: '普通攻击', cost: 1, type: 'attack', rarity: 'common', description: '造成6点伤害', effect: { type: 'damage', value: 6, target: 'enemy' }, icon: 'Sword' },
+  { id: 'heavy_strike', name: '重击', cost: 2, type: 'attack', rarity: 'common', description: '造成10点伤害', effect: { type: 'damage', value: 10, target: 'enemy' }, icon: 'Hammer' },
   { id: 'cleave', name: '横扫', cost: 1, type: 'attack', rarity: 'common', description: '对所有敌人造成5点伤害', effect: { type: 'damage', value: 5, target: 'all' }, icon: 'Wind' },
   
   // MyGO名梗攻击
-  { id: 'why_play_haruhikage', name: '为什么要演奏春日影', cost: 2, type: 'attack', rarity: 'common', description: '造成10点伤害。如果是本回合第一张牌，伤害翻倍并晕眩敌人', effect: { type: 'damage', value: 10, target: 'enemy', extraEffect: 'first_card_double_stun' }, icon: 'Music' },
-  { id: 'it_is_my_go', name: 'It is MyGO!!!!!', cost: 1, type: 'attack', rarity: 'common', description: '造成6点伤害。本回合每打出过1张牌，重复1次', effect: { type: 'damage', value: 6, target: 'enemy', extraEffect: 'repeat_per_card_1' }, icon: 'Sparkles' },
+  { id: 'why_play_haruhikage', name: '为什么要演奏春日影', cost: 2, type: 'attack', rarity: 'common', description: '造成7点伤害。如果是本回合第一张牌，伤害翻倍并晕眩敌人', effect: { type: 'damage', value: 7, target: 'enemy', extraEffect: 'first_card_double_stun' }, icon: 'Music' },
+  { id: 'it_is_my_go', name: 'It is MyGO!!!!!', cost: 1, type: 'attack', rarity: 'common', description: '造成4点伤害。本回合每打出过1张牌，重复1次', effect: { type: 'damage', value: 4, target: 'enemy', extraEffect: 'repeat_per_card_1' }, icon: 'Sparkles' },
   { id: 'need_more_practice', name: '还需要更多练习', cost: 1, type: 'attack', rarity: 'common', description: '造成5点伤害。如果未击杀敌人，抽1张牌', effect: { type: 'damage', value: 5, target: 'enemy', extraEffect: 'draw_if_not_kill' }, icon: 'Target' },
-  { id: 'bushiroad', name: '武士道', cost: 2, type: 'attack', rarity: 'common', description: '造成8点伤害。获得等于造成伤害的护盾', effect: { type: 'damage', value: 8, target: 'enemy', extraEffect: 'lifesteal_shield' }, icon: 'Shield' },
+  { id: 'bushiroad', name: '武士道', cost: 2, type: 'attack', rarity: 'common', description: '造成6点伤害。获得等于造成伤害的护盾', effect: { type: 'damage', value: 6, target: 'enemy', extraEffect: 'lifesteal_shield' }, icon: 'Shield' },
   { id: 'soyorin_stare', name: 'Soyorin凝视', cost: 1, type: 'attack', rarity: 'common', description: '造成7点伤害。如果手牌数为偶数，费用-1', effect: { type: 'damage', value: 7, target: 'enemy', extraEffect: 'even_hand_discount' }, icon: 'Eye' },
-  { id: 'rikki_angry', name: '立希愤怒', cost: 2, type: 'attack', rarity: 'common', description: '造成12点伤害。如果上回合受到伤害，伤害+6', effect: { type: 'damage', value: 12, target: 'enemy', extraEffect: 'vengeance_6' }, icon: 'Flame' },
+  { id: 'rikki_angry', name: '立希愤怒', cost: 2, type: 'attack', rarity: 'common', description: '造成8点伤害。如果上回合受到伤害，伤害+4', effect: { type: 'damage', value: 8, target: 'enemy', extraEffect: 'vengeance_6' }, icon: 'Flame' },
   { id: 'mutsumin_silent', name: '睦头人沉默', cost: 1, type: 'attack', rarity: 'common', description: '造成6点伤害。使敌人的特殊能力失效1回合', effect: { type: 'damage', value: 6, target: 'enemy', extraEffect: 'disable_special_1' }, icon: 'VolumeX' },
   { id: 'uika_secret', name: '初华的秘密', cost: 2, type: 'attack', rarity: 'common', description: '造成9点伤害。如果本回合已打出技能牌，晕眩敌人', effect: { type: 'damage', value: 9, target: 'enemy', extraEffect: 'combo_skill_stun' }, icon: 'Star' },
-  { id: 'saki_ruthless', name: '祥子无情', cost: 3, type: 'attack', rarity: 'common', description: '造成15点伤害。弃1张手牌', effect: { type: 'damage', value: 15, target: 'enemy', extraEffect: 'discard_1' }, icon: 'Skull' },
+  { id: 'saki_ruthless', name: '祥子无情', cost: 3, type: 'attack', rarity: 'common', description: '造成12点伤害。弃1张手牌', effect: { type: 'damage', value: 12, target: 'enemy', extraEffect: 'discard_1' }, icon: 'Skull' },
   { id: 'anon_chaos', name: '爱音 chaos', cost: 0, type: 'attack', rarity: 'common', description: '造成3-10点随机伤害', effect: { type: 'damage', value: 0, target: 'enemy', extraEffect: 'random_3_10' }, icon: 'Dices' },
   { id: 'rana_neko', name: '野猫Rana', cost: 1, type: 'attack', rarity: 'common', description: '造成4点伤害2次', effect: { type: 'damage', value: 4, target: 'enemy', extraEffect: 'strike_twice' }, icon: 'Cat' },
   { id: 'tomori_scream', name: '灯呐喊', cost: 2, type: 'attack', rarity: 'common', description: '造成8点伤害。如果生命低于30%，伤害翻倍', effect: { type: 'damage', value: 8, target: 'enemy', extraEffect: 'low_hp_double' }, icon: 'Mic' },
@@ -52,7 +52,7 @@ const rareAttacks: Card[] = [
   { id: 'sql_injection', name: 'SQL注入', cost: 1, type: 'attack', rarity: 'rare', description: '造成8点伤害，无视护盾和减伤', effect: { type: 'damage', value: 8, target: 'enemy', extraEffect: 'pure_damage' }, icon: 'Database' },
   { id: 'crypto_miner', name: '加密货币挖矿', cost: 3, type: 'attack', rarity: 'rare', description: '造成10点伤害3次。获得等于总伤害的金钱', effect: { type: 'damage', value: 10, target: 'enemy', extraEffect: 'triple_damage_to_money' }, icon: 'Bitcoin' },
   { id: 'blue_screen', name: '蓝屏死机', cost: 2, type: 'attack', rarity: 'rare', description: '对所有敌人造成12点伤害，晕眩1回合', effect: { type: 'damage', value: 12, target: 'all', extraEffect: 'stun_all_1' }, icon: 'MonitorX' },
-  { id: 'fork_bomb', name: 'Fork炸弹', cost: 2, type: 'attack', rarity: 'rare', description: '造成7点伤害。每有1个存活的敌人，重复1次', effect: { type: 'damage', value: 7, target: 'enemy', extraEffect: 'repeat_per_enemy' }, icon: 'Network' },
+  { id: 'fork_bomb', name: 'Fork炸弹', cost: 2, type: 'attack', rarity: 'rare', description: '造成6点伤害。每有1个存活的敌人，重复1次', effect: { type: 'damage', value: 6, target: 'enemy', extraEffect: 'repeat_per_enemy' }, icon: 'Network' },
   { id: 'logic_bomb', name: '逻辑炸弹', cost: 1, type: 'attack', rarity: 'rare', description: '埋伏：敌人下次行动时受到15点伤害', effect: { type: 'damage', value: 0, target: 'enemy', extraEffect: 'ambush_damage_15' }, icon: 'Bomb' },
   { id: 'eternal_blue', name: '永恒之蓝', cost: 3, type: 'attack', rarity: 'rare', description: '对所有敌人造成8点伤害。本回合每使用1张牌，重复1次', effect: { type: 'damage', value: 8, target: 'all', extraEffect: 'aoe_repeat_per_card' }, icon: 'CloudLightning' },
   { id: 'meltdown', name: '熔断漏洞', cost: 2, type: 'attack', rarity: 'rare', description: '造成16点伤害。你的下回合开始时受到8点伤害', effect: { type: 'damage', value: 16, target: 'enemy', extraEffect: 'delayed_self_damage_8' }, icon: 'Flame' },
@@ -68,8 +68,8 @@ const epicAttacks: Card[] = [
 // ==================== 防御牌 (40张) ====================
 
 const commonDefenses: Card[] = [
-  { id: 'defend', name: '防御', cost: 1, type: 'defense', rarity: 'common', description: '获得8点护盾', effect: { type: 'shield', value: 8, target: 'self' }, icon: 'Shield' },
-  { id: 'barrier', name: '屏障', cost: 2, type: 'defense', rarity: 'common', description: '获得15点护盾', effect: { type: 'shield', value: 15, target: 'self' }, icon: 'ShieldPlus' },
+  { id: 'defend', name: '防御', cost: 1, type: 'defense', rarity: 'common', description: '获得6点护盾', effect: { type: 'shield', value: 6, target: 'self' }, icon: 'Shield' },
+  { id: 'barrier', name: '屏障', cost: 2, type: 'defense', rarity: 'common', description: '获得10点护盾', effect: { type: 'shield', value: 10, target: 'self' }, icon: 'ShieldPlus' },
   
   // MyGO梗防御
   { id: 'i_will_do_anything', name: '我什么都愿意做', cost: 2, type: 'defense', rarity: 'common', description: '获得12护盾。下回合开始时失去3生命', effect: { type: 'shield', value: 12, target: 'self', extraEffect: 'next_turn_damage_3' }, icon: 'Heart' },
@@ -126,7 +126,7 @@ const commonSkills: Card[] = [
   { id: 'draw', name: '抽牌', cost: 1, type: 'skill', rarity: 'common', description: '抽2张牌', effect: { type: 'draw', value: 2, target: 'self' }, icon: 'Files' },
   
   // MyGO梗技能
-  { id: 'scry_anon', name: '探寻可能性', cost: 1, type: 'skill', rarity: 'common', description: '查看牌库顶3张，选择1张加入手牌', effect: { type: 'draw', value: 1, target: 'self', extraEffect: 'scry_3_pick_1' }, icon: 'Search' },
+  { id: 'scry_anon', name: '探寻可能性', cost: 1, type: 'skill', rarity: 'common', description: '查看牌库顶3张，选择1张加入手牌', effect: { type: 'draw', value: 0, target: 'self', extraEffect: 'scry_3_pick_1' }, icon: 'Search' },
   { id: 'hotfix_rikki', name: '紧急热修', cost: 0, type: 'skill', rarity: 'common', description: '抽1张牌，可立即打出', effect: { type: 'draw', value: 1, target: 'self', extraEffect: 'draw_play_free' }, icon: 'Zap' },
   { id: 'reshuffle', name: '重新来過', cost: 1, type: 'skill', rarity: 'common', description: '弃光手牌，抽等量的牌', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'mulligan' }, icon: 'Shuffle' },
   { id: 'double_play', name: '双重演奏', cost: 2, type: 'skill', rarity: 'common', description: '本回合下2张打出的牌效果触发2次', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'next_2_double' }, icon: 'Copy' },
@@ -171,11 +171,11 @@ const rareSkills: Card[] = [
 const epicSkills: Card[] = [
   { id: 'singularity', name: '技术奇点', cost: 5, type: 'skill', rarity: 'epic', description: '获得5能量，抽5张牌，手牌上限+5，所有卡牌费用为0', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'singularity_burst' }, icon: 'Sparkles' },
   { id: 'sudo_rm_rf', name: 'sudo rm -rf /*', cost: 6, type: 'skill', rarity: 'epic', description: '对所有敌人造成50点伤害。弃光手牌和牌库，抽5张牌', effect: { type: 'damage', value: 50, target: 'all', extraEffect: 'nuke_refresh' }, icon: 'Bomb' },
-  { id: 'artificial_intelligence', name: '人工智能', cost: 4, type: 'skill', rarity: 'epic', description: '抽3张牌，它们本回合费用为0且打出两次', effect: { type: 'draw', value: 3, target: 'self', extraEffect: 'drawn_free_double' }, icon: 'Brain' },
+  { id: 'artificial_intelligence', name: '人工智能', cost: 5, type: 'skill', rarity: 'epic', description: '抽3张牌，它们本回合费用为0', effect: { type: 'draw', value: 3, target: 'self', extraEffect: 'drawn_free_double' }, icon: 'Brain' },
   { id: 'machine_learning', name: '机器学习', cost: 2, type: 'skill', rarity: 'epic', description: '本战斗每回合抽牌+1，永久伤害+1', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'permanent_draw_damage' }, icon: 'TrendingUp' },
   { id: 'smart_contract', name: '智能合约', cost: 2, type: 'skill', rarity: 'epic', description: '本回合打出的所有牌自动重复1次', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'all_cards_repeat' }, icon: 'FileSignature' },
   { id: 'parallel_universe', name: '平行宇宙', cost: 3, type: 'skill', rarity: 'epic', description: '复制当前整手牌', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'duplicate_hand' }, icon: 'Copy' },
-  { id: 'docker_restart', name: 'Docker Restart', cost: 0, type: 'skill', rarity: 'epic', description: '移除所有负面效果，恢复15生命', effect: { type: 'heal', value: 15, target: 'self', extraEffect: 'cleanse' }, icon: 'Container' },
+  { id: 'docker_restart', name: 'Docker Restart', cost: 1, type: 'skill', rarity: 'epic', description: '移除所有负面效果，恢复10生命', effect: { type: 'heal', value: 10, target: 'self', extraEffect: 'cleanse' }, icon: 'Container' },
   { id: 'rubber_duck', name: '小黄鸭调试法', cost: 1, type: 'skill', rarity: 'epic', description: '查看牌库顶10张牌，选择3张加入手牌', effect: { type: 'special', value: 0, target: 'self', extraEffect: 'scry_10_fetch_3' }, icon: 'Duck' },
 ];
 

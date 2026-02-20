@@ -180,7 +180,7 @@ export interface GameState {
   tempShield: number;
   nextTurnDrawBonus: number;
   nextTurnCostPenalty: number;
-  gamePhase: 'menu' | 'character_select' | 'map' | 'combat' | 'shop' | 'event' | 'rest' | 'game_over' | 'victory' | 'tutorial' | 'challenge' | 'cardExchange' | 'reward';
+  gamePhase: 'menu' | 'character_select' | 'map' | 'combat' | 'shop' | 'event' | 'rest' | 'game_over' | 'victory' | 'tutorial' | 'challenge' | 'cardExchange' | 'reward' | 'talent_tree';
   floors: Floor[];
   // 新增状态
   cardsPlayedThisTurn: number;
@@ -300,6 +300,53 @@ export interface GameState {
   
   // ===== 新增: 灵感选择系统 =====
   inspiration?: InspirationState;
+  
+  // ===== 新增: 天赋系统 =====
+  talentPoints?: number;                    // 当前可用天赋点
+  totalTalentPoints?: number;               // 总共获得的天赋点
+  unlockedTalents?: string[];               // 已解锁的天赋ID列表
+  talentEffects?: {                         // 天赋效果累积
+    drawBonus?: number;                     // 抽牌加成
+    damageBonus?: number;                   // 伤害加成
+    shieldBonus?: number;                   // 护盾加成
+    maxHealthBonus?: number;                // 最大生命加成
+    maxEnergyBonus?: number;                // 最大能量加成
+    startShield?: number;                   // 战斗开始护盾
+    healPerTurn?: number;                   // 每回合恢复生命
+    moneyMultiplier?: number;               // 金钱获取倍率
+    handSizeBonus?: number;                 // 手牌上限加成
+    // 特殊效果标记
+    lowHpDamageBonus?: boolean;             // 低血量伤害加成
+    criticalHpDoubleDamage?: boolean;       // 危急血量双倍伤害
+    shopDiscount?: number;                  // 商店折扣
+    randomDamageBonus?: number;             // 随机伤害加成
+    firstAttackCostMinus?: boolean;         // 首攻减费
+    attackDoubleChance?: number;            // 攻击双倍几率
+    shieldPierce?: number;                  // 护盾穿透
+    comboBonus?: number;                    // 连击加成
+    cardPlayEnergy?: boolean;               // 出牌回能
+    lowDeckDoubleDamage?: boolean;          // 牌库少时双倍伤害
+    damageReduction?: number;               // 伤害减免
+    cheatDeath?: boolean;                   // 免死效果
+    extraStrike?: number;                   // 额外连击
+    killExtraTurn?: boolean;                // 击杀额外回合
+    shieldOverheal?: boolean;               // 护盾转生命
+    emergencyHealAndEnergy?: boolean;       // 危急回血回能
+    critRate?: number;                      // 暴击率
+    critDamage?: number;                    // 暴击伤害加成(%)
+  };
+  
+  // 战斗中的天赋相关状态
+  critRate?: number;                        // 当前暴击率
+  critDamage?: number;                      // 当前暴击伤害加成
+  startStrength?: number;                   // 战斗开始获得的力量
+  
+  // 天赋树状态
+  talentTree?: {
+    characterId: string;
+    availablePoints: number;
+    unlockedTalents: string[];
+  };
 }
 
 // 战斗记录条目
@@ -362,13 +409,25 @@ export interface GameEvent {
   id: string;
   title: string;
   description: string;
+  category: 'benefit' | 'risk' | 'choice' | 'random' | 'shop';
   choices: EventChoice[];
 }
 
 export interface EventChoice {
+  id: string;
   text: string;
-  effect: () => void;
-  condition?: () => boolean;
+  description?: string;
+  effects: EventEffect[];
+  condition?: (state: GameState) => boolean;
+  conditionText?: string;
+}
+
+export interface EventEffect {
+  type: 'money' | 'health' | 'maxHealth' | 'card' | 'removeCard' | 'upgradeCard' | 
+        'curse' | 'shield' | 'damageBonus' | 'drawBonus' | 'enemyBuff' | 
+        'skipReward' | 'forceBoss' | 'hardware' | 'special';
+  value: number;
+  target?: string;
 }
 
 // 游戏配置

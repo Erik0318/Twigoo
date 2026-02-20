@@ -17,6 +17,7 @@ import { ChallengeView } from '@/components/ChallengeView';
 import { CardExchangeView } from '@/components/CardExchangeView';
 import { RewardView } from '@/components/RewardView';
 import { HandView } from '@/components/HandView';
+import { TalentTreeView } from '@/components/TalentTreeView';
 import { getRandomChallenge, getRandomExchangeOptions } from '@/data/specialRooms';
 import { getCombatRewardCards } from '@/data/cards';
 import { Toaster } from '@/components/ui/sonner';
@@ -25,10 +26,13 @@ import { GameOver } from '@/components/GameOver';
 import { TutorialView } from '@/components/TutorialView';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Gift, Sparkles, Trash2, RefreshCw, Swords, Shield, Zap } from 'lucide-react';
+import { RoomAIAdvice } from '@/components/RoomAIAdvice';
+
 
 function App() {
   // ==================== 游戏状态管理 ====================
   const [showHandView, setShowHandView] = useState(false);
+
   const {
     gameState,           // 当前游戏状态
     setGameState,        // 设置游戏状态
@@ -56,6 +60,8 @@ function App() {
     selectReward,        // 选择奖励卡牌
     skipReward,           // 跳过奖励
     completeInspiration, // 完成灵感选择
+    applyEventResult,    // 应用事件效果
+    unlockTalent,        // 解锁天赋
   } = useGameState();
 
   // ==================== 音频管理 ====================
@@ -271,6 +277,49 @@ function App() {
     playSFX('heal');
     rest();
   }, [rest, playSFX]);
+  
+  /**
+   * 打开天赋树界面
+   */
+  const handleOpenTalentTree = useCallback(() => {
+    playSFX('buttonClick');
+    setGameState(prev => ({ ...prev, gamePhase: 'talent_tree' }));
+  }, [playSFX, setGameState]);
+  
+  /**
+   * 关闭天赋树返回地图
+   */
+  const handleCloseTalentTree = useCallback(() => {
+    playSFX('buttonClick');
+    setGameState(prev => ({ ...prev, gamePhase: 'map' }));
+  }, [playSFX, setGameState]);
+  
+  /**
+   * 解锁天赋
+   */
+  const handleUnlockTalent = useCallback((talentId: import('@/systems/characterTalentTree').TalentId) => {
+    playSFX('buttonClick');
+    return unlockTalent(talentId);
+  }, [unlockTalent, playSFX]);
+  
+  /**
+   * 和角色对话完成 - 恢复少量精力
+   */
+  const handleChatComplete = useCallback(() => {
+    setGameState(prev => {
+      if (prev.characters[0]) {
+        const newChar = {
+          ...prev.characters[0],
+          currentEnergy: Math.min(
+            prev.characters[0].maxEnergy,
+            prev.characters[0].currentEnergy + 5
+          )
+        };
+        return { ...prev, characters: [newChar] };
+      }
+      return prev;
+    });
+  }, []);
 
   /**
    * 处理音量变化
@@ -325,6 +374,7 @@ function App() {
             onNextFloor={handleNextFloor}
             gameState={gameState}
             onShowHand={() => setShowHandView(true)}
+            onOpenTalentTree={handleOpenTalentTree}
           />
         );
       }
@@ -374,8 +424,22 @@ function App() {
         return (
           <RestView
             character={gameState.characters[0]}
+            talentPoints={gameState.talentPoints}
             onRest={handleRest}
             onLeave={handleLeave}
+            onChatComplete={handleChatComplete}
+            onOpenTalentTree={handleOpenTalentTree}
+          />
+        );
+      
+      // ---------- 天赋树 ----------
+      case 'talent_tree':
+        return (
+          <TalentTreeView
+            character={gameState.characters[0]}
+            gameState={gameState}
+            onUnlockTalent={handleUnlockTalent}
+            onLeave={handleCloseTalentTree}
           />
         );
       
@@ -385,10 +449,14 @@ function App() {
           <EventView
             gameState={gameState}
             onLeave={handleLeave}
-            onEffectApplied={(message, title) => {
-              toast.success(`🎭 事件结果`, {
-                description: `${title}: ${message}`
-              });
+            onApplyEffects={(result) => {
+              applyEventResult(result);
+              // 显示结果提示
+              if (result.messages.length > 0) {
+                toast.success(`🎭 事件完成`, {
+                  description: result.messages.join('，')
+                });
+              }
             }}
           />
         );
@@ -396,29 +464,38 @@ function App() {
       // ---------- 挑战房间 ----------
       case 'challenge':
         return (
-          <ChallengeView
-            challenge={getRandomChallenge()}
-            onAnswer={(correct) => {
-              if (correct) {
-                const reward = Math.floor(Math.random() * 50) + 20;
-                setGameState(prev => ({ ...prev, money: prev.money + reward }));
-                toast.success(`🎉 回答正确！获得 ${reward} 金钱！`, {
-                  description: '你的编程知识很扎实！'
-                });
-              } else {
-                toast.error('❌ 回答错误', {
-                  description: '下次再接再厉！'
-                });
-              }
-              handleLeave();
-            }}
-            onLeave={handleLeave}
-          />
+          <>
+            <ChallengeView
+              challenge={getRandomChallenge()}
+              onAnswer={(correct) => {
+                if (correct) {
+                  const reward = Math.floor(Math.random() * 50) + 20;
+                  setGameState(prev => ({ ...prev, money: prev.money + reward }));
+                  toast.success(`🎉 回答正确！获得 ${reward} 金钱！`, {
+                    description: '你的编程知识很扎实！'
+                  });
+                } else {
+                  toast.error('❌ 回答错误', {
+                    description: '下次再接再厉！'
+                  });
+                }
+                handleLeave();
+              }}
+              onLeave={handleLeave}
+            />
+            {gameState.characters[0] && (
+              <RoomAIAdvice
+                character={gameState.characters[0]}
+                roomType="challenge"
+              />
+            )}
+          </>
         );
       
       // ---------- 卡牌交换房间 ----------
       case 'cardExchange':
         return (
+          <>
           <CardExchangeView
             options={getRandomExchangeOptions()}
             currentMoney={gameState.money}
@@ -515,6 +592,13 @@ function App() {
             }}
             onLeave={handleLeave}
           />
+          {gameState.characters[0] && (
+            <RoomAIAdvice
+              character={gameState.characters[0]}
+              roomType="cardExchange"
+            />
+          )}
+          </>
         );
       
       // ---------- 奖励选择 ----------

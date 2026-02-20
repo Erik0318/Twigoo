@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Sword, ShoppingCart, HelpCircle, Coffee, Crown, Check, Skull, Lock, Layers, 
-  Gem, RefreshCw, Sparkles
+  Gem, RefreshCw, Sparkles, Star
 } from 'lucide-react';
 
 interface MapViewProps {
@@ -14,6 +14,7 @@ interface MapViewProps {
   onNextFloor: () => void;
   gameState: GameState;
   onShowHand: () => void;
+  onOpenTalentTree?: () => void;
 }
 
 const roomIcons: Record<string, React.ReactNode> = {
@@ -52,7 +53,9 @@ const roomTypeNames: Record<string, string> = {
   cardExchange: '换牌'
 };
 
-export function MapView({ floor, currentRoomId, onEnterRoom, onNextFloor, gameState, onShowHand }: MapViewProps) {
+export function MapView({ floor, currentRoomId, onEnterRoom, onNextFloor, gameState, onShowHand, onOpenTalentTree }: MapViewProps) {
+  const talentPoints = gameState.talentPoints || 0;
+  const hasTalentPoints = talentPoints > 0;
   // 获取当前房间
   const currentRoom = floor.rooms.find(r => r.id === currentRoomId);
   const allCleared = floor.rooms.every(r => r.cleared);
@@ -100,8 +103,8 @@ export function MapView({ floor, currentRoomId, onEnterRoom, onNextFloor, gameSt
           </div>
         </div>
 
-        {/* 查看手牌按钮 */}
-        <div className="flex justify-center mb-6">
+        {/* 查看手牌按钮和天赋树按钮 */}
+        <div className="flex justify-center gap-3 mb-6 flex-wrap">
           <Button 
             onClick={onShowHand}
             variant="outline"
@@ -110,6 +113,26 @@ export function MapView({ floor, currentRoomId, onEnterRoom, onNextFloor, gameSt
             <Layers className="w-4 h-4 mr-2" />
             查看卡牌 (手牌:{gameState.hand.length} 牌库:{gameState.deck.length} 弃牌:{gameState.discard.length})
           </Button>
+          
+          {onOpenTalentTree && (
+            <Button 
+              onClick={onOpenTalentTree}
+              variant="outline"
+              className={`relative ${
+                hasTalentPoints 
+                  ? 'border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 animate-pulse' 
+                  : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
+              }`}
+            >
+              <Star className="w-4 h-4 mr-2" />
+              天赋树
+              {hasTalentPoints && (
+                <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-slate-900 text-xs font-bold rounded-full">
+                  {talentPoints}点
+                </span>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* 分支地图 - 横向列布局 */}

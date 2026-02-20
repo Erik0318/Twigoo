@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getCardPrice, commonCards, rareCards, formatCardDescription } from '@/data/cards';
 import { getRandomHardware, type CPU, type Motherboard, type RamStick, type GPU, type PSU } from '@/data/hardware';
+import { RoomAIAdvice } from './RoomAIAdvice';
 
 interface PCShopViewProps {
   gameState: GameState;
@@ -274,6 +275,26 @@ export function PCShopView({
           </div>
         </Card>
       </div>
+      
+      {/* AI角色建议 */}
+      {gameState.characters[0] && (
+        <RoomAIAdvice
+          character={gameState.characters[0]}
+          roomType="shop"
+          shopContext={{
+            money: gameState.money,
+            items: [
+              { name: shopHardware.name, price: Math.floor(shopHardware.price * priceMultiplier), type: 'hardware' },
+              ...shopCards.filter(c => !(c as any).purchased).map(c => ({
+                name: c.name,
+                price: Math.floor(getCardPrice(c) * priceMultiplier),
+                type: 'card'
+              })),
+              { name: '删卡服务', price: removeCardPrice, type: 'service' }
+            ]
+          }}
+        />
+      )}
     </div>
   );
 }

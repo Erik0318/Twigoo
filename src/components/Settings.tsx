@@ -21,8 +21,11 @@ import {
   Heart,
   Zap,
   Shield,
-  Sword
+  Sword,
+  Bot,
+  BotOff
 } from 'lucide-react';
+import { setCombatCallInterval } from '@/systems/aiCharacterService';
 
 // ==================== 接口定义 ====================
 
@@ -41,7 +44,9 @@ const defaultSettings = {
   bgmVolume: 0.3,           // BGM音量 (0-1)
   sfxVolume: 0.5,           // 音效音量 (0-1)
   animationSpeed: 1,        // 动画速度 (0.5=慢速, 1=正常, 2=快速)
-  showDamageNumbers: true   // 是否显示伤害数字
+  showDamageNumbers: true,  // 是否显示伤害数字
+  aiEnabled: true,          // AI角色助手开关
+  aiCombatInterval: 2       // AI战斗调用频率（每N回合调用一次，1=每回合）
 };
 
 /**
@@ -174,6 +179,17 @@ export function Settings({ isOpen, onClose, onVolumeChange }: SettingsProps) {
     setSettings((prev: any) => ({ ...prev, showDamageNumbers: !prev.showDamageNumbers }));
   };
 
+  const handleToggleAI = () => {
+    setSettings((prev: any) => ({ ...prev, aiEnabled: !prev.aiEnabled }));
+  };
+
+  const handleAIIntervalChange = (value: number[]) => {
+    const interval = value[0];
+    setSettings((prev: any) => ({ ...prev, aiCombatInterval: interval }));
+    // 同时更新AI服务中的间隔
+    setCombatCallInterval(interval);
+  };
+
   const handleReset = () => {
     setSettings(defaultSettings);
   };
@@ -295,6 +311,49 @@ export function Settings({ isOpen, onClose, onVolumeChange }: SettingsProps) {
         <span>显示伤害数字</span>
         <span>{settings.showDamageNumbers ? '开启' : '关闭'}</span>
       </Button>
+
+      {/* AI角色助手开关 */}
+      <Button
+        variant="outline"
+        onClick={handleToggleAI}
+        className={`w-full justify-between ${
+          settings.aiEnabled 
+            ? 'border-purple-500/50 text-purple-400' 
+            : 'border-slate-600 text-slate-400'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          {settings.aiEnabled ? <Bot className="w-4 h-4" /> : <BotOff className="w-4 h-4" />}
+          <span>AI角色助手</span>
+        </div>
+        <span>{settings.aiEnabled ? '开启' : '关闭'}</span>
+      </Button>
+
+      {/* AI战斗调用频率 - 只在AI开启时显示 */}
+      {settings.aiEnabled && (
+        <div className="pl-4 border-l-2 border-purple-500/30">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-yellow-400" />
+              <span className="text-slate-300 text-sm">AI战斗建议频率</span>
+            </div>
+            <span className="text-slate-400 text-sm">
+              {settings.aiCombatInterval === 1 ? '每回合' : `每${settings.aiCombatInterval}回合`}
+            </span>
+          </div>
+          <Slider
+            value={[settings.aiCombatInterval]}
+            onValueChange={handleAIIntervalChange}
+            min={1}
+            max={5}
+            step={1}
+            className="w-full"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            频率越低，API调用越少，费用越低（关键回合仍会触发）
+          </p>
+        </div>
+      )}
 
       {/* 游戏教程按钮 */}
       <Button

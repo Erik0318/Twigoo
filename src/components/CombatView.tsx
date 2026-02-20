@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CombatLogTree } from './CombatLogTree';
 import { InspirationView } from './InspirationView';
+import { CombatAIReaction } from './CombatAIReaction';
 import { 
   Cpu, MemoryStick, Zap, Heart, Shield, Coins, Swords, Skull, Sparkles, Wind,
   // 攻击图标
@@ -573,6 +574,58 @@ export function CombatView({ gameState, onPlayCard, onEndTurn, onPlaySFX, onComp
         </Card>
 
       </div>
+
+      {/* AI角色反应 - 固定左下角 */}
+      <CombatAIReaction
+        character={character}
+        turn={gameState.turn}
+        combatStatus={{
+          turn: gameState.turn,
+          playerHealth: character.currentEnergy,
+          playerMaxHealth: character.maxEnergy,
+          playerEnergy: gameState.currentCost,
+          playerMaxEnergy: gameState.maxCost,
+          playerShield: gameState.tempShield,
+          handSize: gameState.hand.length,
+          handCards: gameState.hand.map(c => c.name),
+          handAttackCount: gameState.hand.filter(c => c.type === 'attack').length,
+          handDefenseCount: gameState.hand.filter(c => c.type === 'defense').length,
+          handSkillCount: gameState.hand.filter(c => c.type === 'skill').length,
+          handCardDetails: gameState.hand.map(c => ({
+            name: c.name,
+            cost: c.cost,
+            type: c.type as 'attack' | 'defense' | 'skill',
+            damage: c.effect?.type === 'damage' ? c.effect.value : undefined,
+            shield: c.effect?.type === 'shield' ? c.effect.value : undefined,
+            description: c.description
+          })),
+          deckSize: gameState.deck.length,
+          discardSize: gameState.discard.length,
+          hardware: {
+            cpuDraw: stats.drawPower,
+            ramEnergy: stats.maxEnergy,
+            gpuBonus: stats.gpuBonus
+          },
+          enemies: gameState.currentEnemies.map(e => ({
+            name: e.name,
+            health: e.currentHealth,
+            maxHealth: e.maxHealth,
+            shield: (e as any).shield || 0,
+            attack: e.attack || 0
+            // 注意：不传 intent，AI不应该预知敌人行动
+          })),
+          playerBuffs: [
+            ...(gameState.nextAttackBonus ? [`下攻+${gameState.nextAttackBonus}`] : []),
+            ...(gameState.retaliate ? [`反击${gameState.retaliate}`] : []),
+            ...(gameState.artifact ? [`神器${gameState.artifact}`] : [])
+          ],
+          playerDebuffs: [
+            ...(gameState.playerWeak ? [`虚弱${gameState.playerWeak}`] : []),
+            ...(gameState.playerVulnerable ? [`易伤${gameState.playerVulnerable}`] : []),
+            ...(gameState.playerPoison ? [`中毒${gameState.playerPoison}`] : [])
+          ]
+        }}
+      />
 
       {/* 敌人区域 - 使用flex-1自动填充剩余空间 */}
       <div className="flex-1 flex items-center justify-center gap-4 px-4 pb-4 flex-wrap">

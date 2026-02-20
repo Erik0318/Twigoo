@@ -20,9 +20,9 @@ export const floor1Enemies: Enemy[] = [
   {
     id: 'syntaxError',
     name: '语法错误',
-    maxHealth: 30,
-    currentHealth: 30,
-    attack: 6,
+    maxHealth: 24,
+    currentHealth: 24,
+    attack: 5,
     special: 'none',
     specialDescription: '无特殊能力',
     image: '/enemies/syntaxError.png'
@@ -30,9 +30,9 @@ export const floor1Enemies: Enemy[] = [
   {
     id: 'warning',
     name: '编译警告',
-    maxHealth: 25,
-    currentHealth: 25,
-    attack: 5,
+    maxHealth: 20,
+    currentHealth: 20,
+    attack: 4,
     special: 'weak',
     specialDescription: '攻击时施加1层虚弱（玩家下回合伤害-25%）',
     image: '/enemies/warning.png'
@@ -40,9 +40,9 @@ export const floor1Enemies: Enemy[] = [
   {
     id: 'consoleLog',
     name: '调试日志',
-    maxHealth: 35,
-    currentHealth: 35,
-    attack: 4,
+    maxHealth: 28,
+    currentHealth: 28,
+    attack: 3,
     special: 'shield',
     specialDescription: '每2回合获得8点护盾',
     image: '/enemies/consoleLog.png'
@@ -50,9 +50,9 @@ export const floor1Enemies: Enemy[] = [
   {
     id: 'comment',
     name: '遗留注释',
-    maxHealth: 28,
-    currentHealth: 28,
-    attack: 7,
+    maxHealth: 22,
+    currentHealth: 22,
+    attack: 6,
     special: 'heal',
     specialDescription: '每3回合恢复10点生命',
     image: '/enemies/comment.png'
@@ -64,9 +64,9 @@ export const floor2Enemies: Enemy[] = [
   {
     id: 'typeMismatch',
     name: '类型不匹配',
-    maxHealth: 40,
-    currentHealth: 40,
-    attack: 8,
+    maxHealth: 32,
+    currentHealth: 32,
+    attack: 7,
     special: 'vulnerable',
     specialDescription: '攻击施加2层易伤（受到伤害+50%）',
     image: '/enemies/typeMismatch.png'
@@ -74,9 +74,9 @@ export const floor2Enemies: Enemy[] = [
   {
     id: 'nullPointer',
     name: '空指针异常',
-    maxHealth: 35,
-    currentHealth: 35,
-    attack: 10,
+    maxHealth: 28,
+    currentHealth: 28,
+    attack: 8,
     special: 'pointerImmune',
     specialDescription: '免疫下1次攻击，每3回合重置',
     image: '/enemies/nullPointer.png'
@@ -84,9 +84,9 @@ export const floor2Enemies: Enemy[] = [
   {
     id: 'indexOutOfBounds',
     name: '数组越界',
-    maxHealth: 38,
-    currentHealth: 38,
-    attack: 6,
+    maxHealth: 30,
+    currentHealth: 30,
+    attack: 5,
     special: 'multiStrike',
     specialDescription: '每3回合进行3段攻击（每次6点）',
     image: '/enemies/indexOutOfBounds.png'
@@ -94,9 +94,9 @@ export const floor2Enemies: Enemy[] = [
   {
     id: 'castException',
     name: '类型转换异常',
-    maxHealth: 42,
-    currentHealth: 42,
-    attack: 7,
+    maxHealth: 34,
+    currentHealth: 34,
+    attack: 6,
     special: 'transform',
     specialDescription: '生命值<50%时攻击+3',
     image: '/enemies/castException.png'
@@ -108,9 +108,9 @@ export const floor3Enemies: Enemy[] = [
   {
     id: 'memoryLeak',
     name: '内存泄漏',
-    maxHealth: 50,
-    currentHealth: 50,
-    attack: 8,
+    maxHealth: 40,
+    currentHealth: 40,
+    attack: 7,
     special: 'growth',
     specialDescription: '每回合最大生命+3，攻击+1',
     image: '/enemies/memoryLeak.png'
@@ -118,9 +118,9 @@ export const floor3Enemies: Enemy[] = [
   {
     id: 'stackOverflow',
     name: '栈溢出',
-    maxHealth: 45,
-    currentHealth: 45,
-    attack: 6,
+    maxHealth: 36,
+    currentHealth: 36,
+    attack: 5,
     special: 'rampage',
     specialDescription: '攻击每回合+1，无上限',
     image: '/enemies/stackOverflow.png'
@@ -128,9 +128,9 @@ export const floor3Enemies: Enemy[] = [
   {
     id: 'segmentationFault',
     name: '段错误',
-    maxHealth: 48,
-    currentHealth: 48,
-    attack: 12,
+    maxHealth: 38,
+    currentHealth: 38,
+    attack: 10,
     special: 'recoil',
     specialDescription: '攻击时自身失去3点生命',
     image: '/enemies/segmentationFault.png'
@@ -138,9 +138,9 @@ export const floor3Enemies: Enemy[] = [
   {
     id: 'garbageCollector',
     name: '垃圾回收器',
-    maxHealth: 55,
-    currentHealth: 55,
-    attack: 5,
+    maxHealth: 44,
+    currentHealth: 44,
+    attack: 4,
     special: 'cleanse',
     specialDescription: '每2回合清除所有负面效果并恢复15点生命',
     image: '/enemies/garbageCollector.png'
@@ -152,9 +152,9 @@ export const floor4Enemies: Enemy[] = [
   {
     id: 'deadlock',
     name: '死锁',
-    maxHealth: 60,
-    currentHealth: 60,
-    attack: 8,
+    maxHealth: 48,
+    currentHealth: 48,
+    attack: 7,
     special: 'stun',
     specialDescription: '每3回合晕眩玩家1回合（无法出牌）',
     image: '/enemies/deadlock.png'
@@ -162,9 +162,9 @@ export const floor4Enemies: Enemy[] = [
   {
     id: 'raceCondition',
     name: '竞态条件',
-    maxHealth: 50,
-    currentHealth: 50,
-    attack: 9,
+    maxHealth: 40,
+    currentHealth: 40,
+    attack: 8,
     special: 'quick',
     specialDescription: '首回合行动两次',
     image: '/enemies/raceCondition.png'
@@ -172,9 +172,9 @@ export const floor4Enemies: Enemy[] = [
   {
     id: 'liveLock',
     name: '活锁',
-    maxHealth: 52,
-    currentHealth: 52,
-    attack: 7,
+    maxHealth: 42,
+    currentHealth: 42,
+    attack: 6,
     special: 'dodge',
     specialDescription: '50%几率闪避攻击',
     image: '/enemies/liveLock.png'
@@ -182,9 +182,9 @@ export const floor4Enemies: Enemy[] = [
   {
     id: 'threadStarvation',
     name: '线程饥饿',
-    maxHealth: 45,
-    currentHealth: 45,
-    attack: 10,
+    maxHealth: 36,
+    currentHealth: 36,
+    attack: 8,
     special: 'drain',
     specialDescription: '攻击时玩家失去1点最大能量',
     image: '/enemies/threadStarvation.png'
@@ -196,9 +196,9 @@ export const floor5Enemies: Enemy[] = [
   {
     id: 'circularDependency',
     name: '循环依赖',
-    maxHealth: 70,
-    currentHealth: 70,
-    attack: 9,
+    maxHealth: 56,
+    currentHealth: 56,
+    attack: 8,
     special: 'reflect',
     specialDescription: '受到攻击时反伤25%',
     image: '/enemies/circularDependency.png'
@@ -206,9 +206,9 @@ export const floor5Enemies: Enemy[] = [
   {
     id: 'versionConflict',
     name: '版本冲突',
-    maxHealth: 65,
-    currentHealth: 65,
-    attack: 8,
+    maxHealth: 52,
+    currentHealth: 52,
+    attack: 7,
     special: 'split',
     specialDescription: '生命值<50%时分裂为2个（各30HP）',
     image: '/enemies/versionConflict.png'
@@ -216,9 +216,9 @@ export const floor5Enemies: Enemy[] = [
   {
     id: 'deprecatedAPI',
     name: '废弃API',
-    maxHealth: 55,
-    currentHealth: 55,
-    attack: 11,
+    maxHealth: 44,
+    currentHealth: 44,
+    attack: 9,
     special: 'decay',
     specialDescription: '每回合对玩家施加"过时"（手牌费用+1）',
     image: '/enemies/deprecatedAPI.png'
@@ -226,9 +226,9 @@ export const floor5Enemies: Enemy[] = [
   {
     id: 'npmInstall',
     name: '无尽依赖',
-    maxHealth: 40,
-    currentHealth: 40,
-    attack: 5,
+    maxHealth: 32,
+    currentHealth: 32,
+    attack: 4,
     special: 'summon',
     specialDescription: '每2回合召唤1个子依赖（15HP，4攻击）',
     image: '/enemies/npmInstall.png'
@@ -240,9 +240,9 @@ export const eliteEnemies: Enemy[] = [
   {
     id: 'elite_memoryLeak',
     name: '巨型内存泄漏',
-    maxHealth: 80,
-    currentHealth: 80,
-    attack: 10,
+    maxHealth: 64,
+    currentHealth: 64,
+    attack: 8,
     special: 'eliteGrowth',
     specialDescription: '每回合攻击+2，生命上限+5',
     image: '/enemies/elite/memoryLeak.png'
@@ -250,9 +250,9 @@ export const eliteEnemies: Enemy[] = [
   {
     id: 'elite_deadlock',
     name: '系统死锁',
-    maxHealth: 90,
-    currentHealth: 90,
-    attack: 12,
+    maxHealth: 72,
+    currentHealth: 72,
+    attack: 10,
     special: 'eliteStun',
     specialDescription: '每2回合晕眩1回合，攻击施加虚弱',
     image: '/enemies/elite/deadlock.png'
@@ -260,9 +260,9 @@ export const eliteEnemies: Enemy[] = [
   {
     id: 'elite_circularDependency',
     name: '恶性循环依赖',
-    maxHealth: 85,
-    currentHealth: 85,
-    attack: 11,
+    maxHealth: 68,
+    currentHealth: 68,
+    attack: 9,
     special: 'eliteReflect',
     specialDescription: '反伤50%，每回合获得10护盾',
     image: '/enemies/elite/circularDependency.png'
@@ -270,9 +270,9 @@ export const eliteEnemies: Enemy[] = [
   {
     id: 'elite_raceCondition',
     name: '临界竞态',
-    maxHealth: 75,
-    currentHealth: 75,
-    attack: 15,
+    maxHealth: 60,
+    currentHealth: 60,
+    attack: 12,
     special: 'eliteQuick',
     specialDescription: '每回合行动两次，首回合三次',
     image: '/enemies/elite/raceCondition.png'
@@ -280,9 +280,9 @@ export const eliteEnemies: Enemy[] = [
   {
     id: 'elite_segmentationFault',
     name: '内核崩溃',
-    maxHealth: 95,
-    currentHealth: 95,
-    attack: 18,
+    maxHealth: 76,
+    currentHealth: 76,
+    attack: 14,
     special: 'eliteCrash',
     specialDescription: '生命值<30%时攻击翻倍',
     image: '/enemies/elite/segmentationFault.png'
@@ -290,9 +290,9 @@ export const eliteEnemies: Enemy[] = [
   {
     id: 'elite_garbageCollector',
     name: '强制GC',
-    maxHealth: 100,
-    currentHealth: 100,
-    attack: 8,
+    maxHealth: 80,
+    currentHealth: 80,
+    attack: 7,
     special: 'eliteCleanse',
     specialDescription: '每回合清除负面效果，恢复20生命',
     image: '/enemies/elite/garbageCollector.png'
@@ -304,9 +304,9 @@ export const bossEnemies: Enemy[] = [
   {
     id: 'boss_compiler',
     name: '编译器本体',
-    maxHealth: 150,
-    currentHealth: 150,
-    attack: 12,
+    maxHealth: 120,
+    currentHealth: 120,
+    attack: 10,
     special: 'bossCompile',
     specialDescription: '阶段1：每3回合获得20护盾；阶段2（<50%HP）：攻击+5',
     image: '/enemies/boss/compiler.png'
@@ -314,9 +314,9 @@ export const bossEnemies: Enemy[] = [
   {
     id: 'boss_repository',
     name: '代码仓库',
-    maxHealth: 180,
-    currentHealth: 180,
-    attack: 10,
+    maxHealth: 144,
+    currentHealth: 144,
+    attack: 8,
     special: 'bossSummon',
     specialDescription: '每2回合召唤Commit（25HP，6攻击），最多3个',
     image: '/enemies/boss/repository.png'
@@ -324,9 +324,9 @@ export const bossEnemies: Enemy[] = [
   {
     id: 'boss_ci_cd',
     name: 'CI/CD流水线',
-    maxHealth: 200,
-    currentHealth: 200,
-    attack: 15,
+    maxHealth: 160,
+    currentHealth: 160,
+    attack: 12,
     special: 'bossPipeline',
     specialDescription: '每回合进行2次行动，生命值<50%时3次',
     image: '/enemies/boss/ci_cd.png'
@@ -334,9 +334,9 @@ export const bossEnemies: Enemy[] = [
   {
     id: 'boss_legacyMonolith',
     name: '遗留单体架构',
-    maxHealth: 250,
-    currentHealth: 250,
-    attack: 8,
+    maxHealth: 200,
+    currentHealth: 200,
+    attack: 7,
     special: 'bossMonolith',
     specialDescription: '免疫前3回合伤害；每回合自愈15点',
     image: '/enemies/boss/legacyMonolith.png'
@@ -344,9 +344,9 @@ export const bossEnemies: Enemy[] = [
   {
     id: 'boss_distributedSystem',
     name: '分布式系统',
-    maxHealth: 120,
-    currentHealth: 120,
-    attack: 14,
+    maxHealth: 96,
+    currentHealth: 96,
+    attack: 11,
     special: 'bossDistributed',
     specialDescription: '同时与3个节点战斗，必须全部击败',
     image: '/enemies/boss/distributedSystem.png'
@@ -354,9 +354,9 @@ export const bossEnemies: Enemy[] = [
   {
     id: 'boss_springShadow',
     name: '春日影',
-    maxHealth: 300,
-    currentHealth: 300,
-    attack: 16,
+    maxHealth: 240,
+    currentHealth: 240,
+    attack: 13,
     special: 'bossTransform',
     specialDescription: '3个阶段：70%和40%时变身，攻击模式改变',
     image: '/enemies/boss/springShadow.png'
