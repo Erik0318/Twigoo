@@ -4,7 +4,6 @@ A command-only, text-first forum prototype.
 
 No buttons. No visible composer boxes. No images. No icons. The only input surface is the command line at the bottom.
 
-***IMPORTANT: IF U MADE ANY CHANGED U SHOULD UPDATE THE /home/twigoo/terminal-forum/Update_Log.md!!!!!!!***
 
 ## Run
 
