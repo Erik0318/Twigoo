@@ -1,6 +1,3 @@
-﻿node_modules/
+data/*.json
 dist/
-.build/
-.next/
-out/
-.DS_Store
+picsforfeedback/
