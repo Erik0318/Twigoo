@@ -1,0 +1,14 @@
+[Unit]
+Description=Terminal Forum local website
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/twigoo/terminal-forum
+Environment=PORT=5173
+ExecStart=/usr/bin/node /home/twigoo/terminal-forum/server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
