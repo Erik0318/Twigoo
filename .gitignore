@@ -1,3 +1,5 @@
 data/*.json
 dist/
 picsforfeedback/
+FEATURES.md
+Update_Log.md
