@@ -3,10 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bangdream!ourCodes!!</title>
+    <meta name="description" content="A text-only, terminal-inspired tech forum." />
+    <title>Terminal Forum</title>
+    <link rel="stylesheet" href="src/styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <a class="skip-link" href="#main">skip to forum</a>
+    <div id="app" class="app-shell" aria-live="polite"></div>
+
+    <script src="src/data.js"></script>
+    <script src="src/state.js"></script>
+    <script src="src/vendor/markdown-it.min.js"></script>
+    <script src="src/views.js"></script>
+    <script src="src/commands.js"></script>
+    <script src="src/app.js"></script>
   </body>
 </html>
