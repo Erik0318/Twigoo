@@ -1,6 +1,8 @@
-import { COMMAND_GOOS, dayStamp, json, previousDayStamp, publicUser, readJson, requireUser, saveAuth } from "../_shared.js";
+import { COMMAND_GOOS, dayStamp, hasDataStore, json, previousDayStamp, publicUser, readJson, requireUser, saveAuth } from "../_shared.js";
 
 export async function onRequestPost(context) {
+  if (!hasDataStore(context.env)) return json({ error: "account data store is not configured" }, 503);
+
   const body = await readJson(context.request);
   if (!body) return json({ error: "invalid json" }, 400);
 

@@ -1,6 +1,8 @@
-import { bearerToken, json, loadAuth, readJson, saveAuth } from "../_shared.js";
+import { bearerToken, hasDataStore, json, loadAuth, readJson, saveAuth } from "../_shared.js";
 
 export async function onRequestPost(context) {
+  if (!hasDataStore(context.env)) return json({ error: "account data store is not configured" }, 503);
+
   await readJson(context.request);
   const db = await loadAuth(context.env);
   const token = bearerToken(context.request);

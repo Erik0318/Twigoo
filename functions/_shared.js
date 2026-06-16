@@ -12,7 +12,11 @@ function json(payload, status = 200) {
 }
 
 function dataStore(env) {
-  return env.TWIGOO_DATA || env.DATA || null;
+  return env && (env.TWIGOO_DATA || env.DATA) || null;
+}
+
+function hasDataStore(env) {
+  return Boolean(dataStore(env));
 }
 
 async function readJson(request) {
@@ -286,6 +290,7 @@ export {
   createSession,
   bearerToken,
   dayStamp,
+  hasDataStore,
   hashPassword,
   json,
   loadAuth,

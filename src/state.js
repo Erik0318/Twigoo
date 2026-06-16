@@ -144,11 +144,27 @@
     return true;
   }
 
+  function apiResponse(response) {
+    const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+    if (!contentType.includes("application/json")) {
+      return response.text().then((text) => {
+        const body = String(text || "").trim();
+        const error = body.startsWith("<")
+          ? "api returned html instead of json. run node server.js or deploy the api functions"
+          : "api returned a non-json response";
+        return { response, payload: { error } };
+      });
+    }
+    return response.json()
+      .catch(() => ({ error: "api returned invalid json" }))
+      .then((payload) => ({ response, payload: payload || {} }));
+  }
+
   function restoreForumData() {
     return fetch("/api/forum")
-      .then((response) => response.json().then((payload) => ({ response, payload })))
+      .then(apiResponse)
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "forum restore failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "forum restore failed" };
         return { ok: applyForumSnapshot(payload.forum), message: "forum restored" };
       })
       .catch(authFailure);
@@ -162,9 +178,9 @@
       headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
       body: JSON.stringify({ forum: forumSnapshot() })
     })
-      .then((response) => response.json().then((payload) => ({ response, payload })))
+      .then(apiResponse)
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "forum sync failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "forum sync failed" };
         if (payload.forum) applyForumSnapshot(payload.forum);
         return { ok: true };
       })
@@ -208,7 +224,7 @@
       method: "POST",
       headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
       body: JSON.stringify(body || {})
-    }).then((response) => response.json().then((payload) => ({ response, payload })));
+    }).then(apiResponse);
   }
 
   function authFailure(error) {
@@ -238,7 +254,7 @@
   function register(username, password) {
     return authRequest("/api/register", { username, password })
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "registration failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "registration failed" };
         const user = applyAuth(payload);
         return { ok: true, message: "registered as " + user.username };
       })
@@ -248,7 +264,7 @@
   function login(username, password) {
     return authRequest("/api/login", { username, password })
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "login failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "login failed" };
         const user = applyAuth(payload);
         return { ok: true, message: "logged in as " + user.username };
       })
@@ -261,7 +277,7 @@
 
     return authRequest("/api/profile/bio", { bio })
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "bio update failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "bio update failed" };
         const user = rememberUser(normalizeUserEconomy(payload.user));
         state.session.username = user.username;
         save();
@@ -276,7 +292,7 @@
 
     return authRequest("/api/profile/title", { title })
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "profile title update failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "profile title update failed" };
         const user = rememberUser(normalizeUserEconomy(payload.user));
         state.session.username = user.username;
         save();
@@ -289,9 +305,9 @@
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return Promise.resolve({ ok: false, message: "no saved session" });
     return fetch("/api/session", { headers: authHeaders() })
-      .then((response) => response.json().then((payload) => ({ response, payload })))
+      .then(apiResponse)
       .then(({ response, payload }) => {
-        if (!response.ok) {
+        if (!response.ok || payload.error) {
           localStorage.removeItem(TOKEN_KEY);
           state.session.username = null;
           save();
@@ -307,8 +323,9 @@
 
   function refreshUsers() {
     return fetch("/api/users")
-      .then((response) => response.json())
-      .then((payload) => {
+      .then(apiResponse)
+      .then(({ response, payload }) => {
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "users refresh failed" };
         state.users = Array.isArray(payload.users) ? payload.users.map(normalizeUserEconomy) : [];
         save();
         return { ok: true };
@@ -322,7 +339,7 @@
 
     return authRequest("/api/reward-command", { command, commandId })
       .then(({ response, payload }) => {
-        if (!response.ok) return { ok: false, message: payload.error || "goos reward failed" };
+        if (!response.ok || payload.error) return { ok: false, message: payload.error || "goos reward failed" };
         const user = rememberUser(normalizeUserEconomy(payload.user));
         state.session.username = user.username;
         save();

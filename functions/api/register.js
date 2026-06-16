@@ -1,6 +1,8 @@
-import { STARTING_GOOS, cleanUsername, createSession, hashPassword, json, loadAuth, publicUser, readJson, saveAuth, validatePassword } from "../_shared.js";
+import { STARTING_GOOS, cleanUsername, createSession, hasDataStore, hashPassword, json, loadAuth, publicUser, readJson, saveAuth, validatePassword } from "../_shared.js";
 
 export async function onRequestPost(context) {
+  if (!hasDataStore(context.env)) return json({ error: "account data store is not configured" }, 503);
+
   const body = await readJson(context.request);
   if (!body) return json({ error: "invalid json" }, 400);
 

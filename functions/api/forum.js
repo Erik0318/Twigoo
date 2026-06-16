@@ -1,4 +1,4 @@
-import { json, loadForum, normalizeForum, readJson, requireUser, saveForum } from "../_shared.js";
+import { hasDataStore, json, loadForum, normalizeForum, readJson, requireUser, saveForum } from "../_shared.js";
 
 export async function onRequestGet(context) {
   const forum = await loadForum(context.env);
@@ -7,6 +7,8 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
+  if (!hasDataStore(context.env)) return json({ error: "forum data store is not configured" }, 503);
+
   const { user } = await requireUser(context);
   if (!user) return json({ error: "login required" }, 401);
 
