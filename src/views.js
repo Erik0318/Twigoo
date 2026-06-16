@@ -811,6 +811,7 @@ tags ${escapeHtml((thread.tags || []).map((tag) => "#" + tag).join(" ") || "#unt
         ["register <username> <password>", "create account"],
         ["login <username> <password>", "start session"],
         ["logout", "end session"],
+        ["streak", "claim daily goos"],
         ["profile <username>", "open profile"],
         ["bio <text>", "update your profile bio"],
         ["headline <text>", "update profile headline"]

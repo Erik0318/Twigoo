@@ -5,7 +5,7 @@
 
   const commandNames = [
     "help", "home", "boards", "tags", "tag", "open", "read", "new", "reply", "title", "headline", "body", "append",
-    "upload", "uploadmd", "publish", "cancel", "edit", "delete", "search", "profile", "bio", "register", "login", "logout", "clear", "back", "reset", "theme", "dark", "light", "next", "prev", "enter", "select",
+    "upload", "uploadmd", "publish", "cancel", "edit", "delete", "search", "profile", "bio", "streak", "register", "login", "logout", "clear", "back", "reset", "theme", "dark", "light", "next", "prev", "enter", "select",
     "page", "more", "less", "quote", "link", "links", "bookmark", "unbookmark", "bookmarks"
   ];
 
@@ -310,9 +310,10 @@
     return String(Date.now()) + "-" + Math.random().toString(36).slice(2);
   }
 
-  function canRewardCommand(cmd, ok) {
-    if (!ok || !State().getSessionUser()) return false;
-    return !["login", "register", "logout", "reset"].includes(cmd);
+  function streakLine(user) {
+    const streak = Math.max(0, Number(user && user.streak) || 0);
+    const goos = Math.max(10, Number(user && user.goos) || 10);
+    return streak + " " + (streak === 1 ? "day" : "days") + " streak | " + goos + " goos";
   }
 
   async function run(input) {
@@ -662,6 +663,25 @@
         break;
       }
 
+      case "streak": {
+        if (!State().getSessionUser()) {
+          ok = false;
+          output = "login required. type: register <username> <password> or login <username> <password>";
+          break;
+        }
+        const result = await State().rewardCommand("streak", commandId());
+        ok = result.ok;
+        rewardChanged = result.ok;
+        if (!result.ok) {
+          output = result.message;
+          break;
+        }
+        output = streakLine(result.user || State().getSessionUser());
+        if (result.reward > 0) output += " | +" + result.reward + " goos";
+        if (result.alreadyClaimedToday) output += " | daily goos already claimed";
+        break;
+      }
+
       case "bio": {
         const text = args.join(" ");
         if (!text) {
@@ -878,13 +898,6 @@
       }
     }
 
-    if (canRewardCommand(cmd, ok)) {
-      const reward = await State().rewardCommand(cmd, commandId());
-      rewardChanged = reward.ok;
-      if (reward.ok && reward.reward > 0 && shouldLog) output += " | +" + reward.reward + " goos";
-      if (reward.ok && reward.alreadyClaimedToday && shouldLog) output += " | daily goos already claimed";
-    }
-
     if (shouldLog) addResult(raw, output, ok, displayInput);
 
     if (window.ForumApp && (window.location.hash === startingHash || rewardChanged)) {
@@ -915,7 +928,7 @@
     if (first === "theme") return matching(["theme dark", "theme light"]);
 
     return matching([
-      "register ", "login ", "bio ", "headline ", "quote ", "edit ", "delete ",
+      "register ", "login ", "streak", "bio ", "headline ", "quote ", "edit ", "delete ",
       "bookmark", "unbookmark", "bookmarks"
     ]);
   }

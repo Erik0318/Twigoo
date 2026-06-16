@@ -11,6 +11,8 @@ export async function onRequestPost(context) {
 
   const commandId = String(body.commandId || "").replace(/[^a-zA-Z0-9_.:-]/g, "").slice(0, 80);
   if (!commandId) return json({ error: "missing command id" }, 400);
+  const command = String(body.command || "").trim().toLowerCase();
+  if (command !== "streak") return json({ error: "usage: streak" }, 400);
 
   const duplicate = user.goosLedger.some((entry) => entry && entry.id === commandId);
   let reward = 0;

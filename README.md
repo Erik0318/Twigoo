@@ -41,6 +41,7 @@ open design
 read 1
 register erik "long-password"
 login erik "long-password"
+streak
 logout
 tag create tools Tools; small utilities and workflow notes
 tag bio tools command-first tool notes
@@ -79,7 +80,7 @@ Auth is command-only. Registration and login use username plus password only. Pa
 
 Logged-in users can decorate their profile page with `bio <text>` and `headline <text>`.
 
-New accounts start with 10 goos. Once per GMT+8 calendar day, the first successful command from a logged-in user credits 5 goos and updates their command streak. Goos are server-backed account data, exposed in profile views as `x days streak`, and guarded with migration defaults so missing or malformed saved values fall back to at least 10 instead of zero.
+New accounts start with 10 goos. Once per GMT+8 calendar day, a logged-in user can run `streak` to credit 5 goos and update their command streak. Goos are server-backed account data, exposed in profile views as `x days streak`, and guarded with migration defaults so missing or malformed saved values fall back to at least 10 instead of zero.
 
 For Node deployment, keep the `data/` directory on persistent storage. The app generates `data/auth.json` and `data/forum.json` at runtime and writes them atomically; these generated JSON files are intentionally ignored by git. For Cloudflare deployment, use the `TWIGOO_DATA` KV binding instead of filesystem data.
 

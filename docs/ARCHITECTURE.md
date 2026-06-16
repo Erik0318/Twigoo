@@ -48,6 +48,7 @@ Examples:
 ```txt
 register erik "long-password"
 login erik "long-password"
+streak
 tags
 tag design
 read 2
@@ -131,13 +132,13 @@ The server validates usernames, stores salted password hashes in generated `data
 
 ## Goos and streaks
 
-Goos are server-backed account fields, not localStorage-only UI state. New users start with 10 goos. After a logged-in user enters a successful command, the browser calls:
+Goos are server-backed account fields, not localStorage-only UI state. New users start with 10 goos. After a logged-in user enters the `streak` command, the browser calls:
 
 ```txt
 POST /api/reward-command
 ```
 
-The server credits 5 goos only once per GMT+8 calendar day, updates the user's command count, and maintains a GMT+8-day streak. Later commands on the same GMT+8 day update command activity but do not add more goos. Each reward request includes a command id; duplicate ids are ignored so a retry cannot double-credit the same command. User records are normalized on load and before public output, with a hard minimum of 10 goos so missing, old, or malformed data never zeroes the balance accidentally.
+The server accepts this reward request only for `command: "streak"`. It credits 5 goos once per GMT+8 calendar day, updates the user's command count, and maintains a GMT+8-day streak. Later `streak` commands on the same GMT+8 day update command activity but do not add more goos. Each reward request includes a command id; duplicate ids are ignored so a retry cannot double-credit the same command. User records are normalized on load and before public output, with a hard minimum of 10 goos so missing, old, or malformed data never zeroes the balance accidentally.
 
 ## Future backend path
 
